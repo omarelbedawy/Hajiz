@@ -83,6 +83,8 @@ export default function NewBookingPage() {
     }
   }
 
+  const isTestMode = form.watch('isTestMode');
+
   return (
     <div className="container mx-auto max-w-2xl py-8 px-4">
       <Card>
@@ -92,58 +94,6 @@ export default function NewBookingPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
-                <div className="space-y-4">
-                  <FormField control={form.control} name="hotelName" render={({ field }) => (
-                    <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="hotelRef" render={({ field }) => (
-                    <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                </div>
-              </div>
-              <Separator />
-               <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Flight Information</h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="flightNumber" render={({ field }) => (
-                      <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="pnr" render={({ field }) => (
-                      <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
-                      <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="flightDate" render={({ field }) => (
-                      <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
-                          <PopoverTrigger asChild><FormControl>
-                              <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button></FormControl></PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date('1900-01-01')} initialFocus />
-                          </PopoverContent>
-                        </Popover><FormMessage /></FormItem>
-                    )} />
-                  </div>
-                </div>
-              </div>
-              <Separator />
-              <FormField control={form.control} name="isHajjUmrah" render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>This is for a Hajj or Umrah trip</FormLabel>
-                      <FormDescription>Select this if the booking is related to your pilgrimage.</FormDescription>
-                    </div>
-                  </FormItem>
-                )} />
               <FormField control={form.control} name="isTestMode" render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -163,6 +113,89 @@ export default function NewBookingPage() {
                   </FormControl>
                 </FormItem>
               )} />
+
+              {isTestMode ? (
+                 <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Test Flight Information</h3>
+                     <p className="text-sm text-muted-foreground mb-4">In test mode, you only need a flight number and a date to simulate tracking.</p>
+                    <div className="space-y-4">
+                         <FormField control={form.control} name="flightNumber" render={({ field }) => (
+                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV-TEST" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="flightDate" render={({ field }) => (
+                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
+                              <PopoverTrigger asChild><FormControl>
+                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
+                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button></FormControl></PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                              </PopoverContent>
+                            </Popover><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                  </div>
+                 </>
+              ) : (
+                <>
+                   <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
+                    <div className="space-y-4">
+                      <FormField control={form.control} name="hotelName" render={({ field }) => (
+                        <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="hotelRef" render={({ field }) => (
+                        <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </div>
+                  <Separator />
+                   <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Flight Information</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="flightNumber" render={({ field }) => (
+                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="pnr" render={({ field }) => (
+                          <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
+                          <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="flightDate" render={({ field }) => (
+                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
+                              <PopoverTrigger asChild><FormControl>
+                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
+                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button></FormControl></PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date('1900-01-01')} initialFocus />
+                              </PopoverContent>
+                            </Popover><FormMessage /></FormItem>
+                        )} />
+                      </div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <FormField control={form.control} name="isHajjUmrah" render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>This is for a Hajj or Umrah trip</FormLabel>
+                          <FormDescription>Select this if the booking is related to your pilgrimage.</FormDescription>
+                        </div>
+                      </FormItem>
+                    )} />
+                </>
+              )}
+             
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Booking
