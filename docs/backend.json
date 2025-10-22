@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Hajj Booking Tracker application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "createdAt"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a booking made by a user for a Hajj or Umrah trip.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the booking entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Booking)"
+        },
+        "isHajjUmrah": {
+          "type": "boolean",
+          "description": "Indicates whether the booking is for a Hajj or Umrah trip."
+        },
+        "hotelName": {
+          "type": "string",
+          "description": "Name of the hotel for the booking."
+        },
+        "hotelRef": {
+          "type": "string",
+          "description": "Hotel booking reference or confirmation number."
+        },
+        "flightNumber": {
+          "type": "string",
+          "description": "Flight number for the booking."
+        },
+        "pnr": {
+          "type": "string",
+          "description": "Passenger Name Record (PNR) or airline locator code."
+        },
+        "arrivalAirport": {
+          "type": "string",
+          "description": "Arrival airport code."
+        },
+        "flightDate": {
+          "type": "string",
+          "description": "Flight date.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the booking (e.g., Pending Verification, Confirmed, Cancelled)."
+        },
+        "isTestMode": {
+          "type": "boolean",
+          "description": "Flag indicating whether the booking is in test mode."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the booking was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "isHajjUmrah",
+        "hotelName",
+        "hotelRef",
+        "flightNumber",
+        "pnr",
+        "arrivalAirport",
+        "flightDate",
+        "status",
+        "isTestMode",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Bookings are stored as a subcollection within each user document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores booking information for a specific user. Access is restricted to the user who owns the booking, based on the userId in the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            },
+            {
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage user data and booking information for the Hajj Booking Tracker application. User data is stored under the `/users/{userId}` path, providing a private space for each user. Bookings are stored as subcollections within each user's document (`/users/{userId}/bookings/{bookingId}`), reflecting the 1:N relationship between users and bookings. This structure leverages path-based ownership, enabling simple and efficient security rules based on the `request.auth.uid`. This design inherently supports Authorization Independence because access control is determined by the user ID present in the path. The QAPs are supported because the `list` operation only requires knowledge of the user’s `uid`, enabling listing of bookings."
+  }
+}

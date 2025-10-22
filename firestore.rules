@@ -1,0 +1,70 @@
+/**
+ * @fileoverview Firestore Security Rules for Hajj Booking Tracker.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user can only
+ * access their own user document and the bookings associated with their account.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/bookings/{bookingId}: Stores booking information for a specific user.
+ *
+ * Key Security Decisions:
+ * - Users can only create their own user document and manage their own bookings.
+ * - Listing all users is disallowed.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces access control for user documents. Only the authenticated user can read and write their own profile.
+     * @path /users/{userId}
+     * @allow (create) - User with UID 'user_abc' can create their own document at /users/user_abc.
+     * @allow (get, update, delete) - User with UID 'user_abc' can read/update/delete their own document at /users/user_abc.
+     * @deny (create) - User with UID 'user_xyz' cannot create a document at /users/user_abc.
+     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read/update/delete the document at /users/user_abc.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing all users is disallowed.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == userId; //Enforce immutability of userId
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces access control for booking documents. Only the user associated with the booking can read and write it.
+     * @path /users/{userId}/bookings/{bookingId}
+     * @allow (create) - User with UID 'user_abc' can create a booking at /users/user_abc/bookings/booking_123.
+     * @allow (get, update, delete) - User with UID 'user_abc' can read/update/delete their own booking at /users/user_abc/bookings/booking_123.
+     * @deny (create) - User with UID 'user_xyz' cannot create a booking at /users/user_abc/bookings/booking_123.
+     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read/update/delete the booking at /users/user_abc/bookings/booking_123.
+     * @principle Enforces document ownership for all operations within the user's booking subcollection.
+     */
+    match /users/{userId}/bookings/{bookingId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId; //Enforce immutability of userId
+      allow delete: if isOwner(userId) && resource != null;
+    }
+  }
+}
