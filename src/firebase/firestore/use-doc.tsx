@@ -29,7 +29,7 @@ export interface UseDocResult<T> {
  * IMPORTANT! YOU MUST MEMOIZE the inputted docRef or an infinite loop will occur
  * use useMemo to memoize it per React guidence.
  *
- * @template T Optional type for document data. Defaults to any.
+* @template T Optional type for document data. Defaults to any.
  * @param {DocumentReference<DocumentData> | null | undefined} docRef -
  * The Firestore DocumentReference. Waits if null/undefined.
  * @returns {UseDocResult<T>} Object with data, isLoading, error.

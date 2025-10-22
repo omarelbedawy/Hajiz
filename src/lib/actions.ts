@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase';
+import { initializeFirebase } from '@/firebase/admin';
 
 const formSchema = z.object({
   hotelName: z.string(),

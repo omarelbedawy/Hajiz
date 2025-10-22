@@ -40,7 +40,7 @@ export default function Header() {
       <div className="container flex h-16 items-center">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
           <Plane className="h-6 w-6 text-primary" />
-          <span className="font-headline">Hajj Tracker</span>
+          <span className="font-headline">Hajiz</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
           {isUserLoading ? (
