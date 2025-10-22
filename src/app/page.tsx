@@ -1,11 +1,19 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Plane, Hotel, CheckCircle } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((p) => p.id === 'landing-hero');
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
 
   return (
     <div className="flex flex-col">
@@ -72,7 +80,7 @@ export default function Home() {
 
       <footer className="border-t">
         <div className="container mx-auto py-6 px-4 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Hajiz. All rights reserved.</p>
+          <p>&copy; {year} Hajiz. All rights reserved.</p>
         </div>
       </footer>
     </div>
