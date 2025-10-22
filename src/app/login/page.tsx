@@ -49,19 +49,17 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'Firebase auth service is not available.',
+      });
+      setIsLoading(false);
+      return;
+    }
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-
-      if (!userCredential.user.emailVerified) {
-        toast({
-          variant: 'destructive',
-          title: 'Verification Required',
-          description: 'Please verify your email before logging in. Check your inbox for a verification link.',
-        });
-        setIsLoading(false);
-        return;
-      }
-      
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: 'Success!',
         description: 'You have been logged in successfully.',

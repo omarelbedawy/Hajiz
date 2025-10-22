@@ -1,10 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from './firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { initializeFirebase } from '@/firebase';
 
 const formSchema = z.object({
   hotelName: z.string(),
@@ -19,12 +19,13 @@ const formSchema = z.object({
 type BookingFormValues = z.infer<typeof formSchema>;
 
 export async function addBooking(data: BookingFormValues, userId: string) {
+    const { firestore } = initializeFirebase();
     if (!userId) {
         return { success: false, error: 'User not authenticated.' };
     }
 
     try {
-        await addDoc(collection(db, 'bookings'), {
+        await addDoc(collection(firestore, 'users', userId, 'bookings'), {
             userId: userId,
             hotelName: data.hotelName,
             hotelRef: data.hotelRef,

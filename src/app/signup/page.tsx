@@ -57,6 +57,15 @@ export default function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'Firebase auth service is not available.',
+      });
+      setIsLoading(false);
+      return;
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await sendEmailVerification(userCredential.user);
@@ -65,7 +74,6 @@ export default function SignupPage() {
         title: 'Verification Email Sent!',
         description: 'Please check your inbox to verify your account.',
       });
-      // Don't redirect immediately, let user see the message.
     } catch (error: any) {
       toast({
         variant: 'destructive',
