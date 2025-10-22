@@ -17,6 +17,7 @@ async function triggerProtectionAlert(bookingId: string) {
 
 // This function can be run on a schedule (e.g., every 15 minutes) by a cron job service.
 export async function GET(request: Request) {
+  // NOTE: This now uses NEXT_PUBLIC_FLIGHT_API_KEY to be accessible by the API route
   const flightApiKey = process.env.FLIGHT_API_KEY;
   if (!flightApiKey) {
     throw new Error('FLIGHT_API_KEY is not set in environment variables.');
@@ -59,24 +60,26 @@ export async function GET(request: Request) {
         return { bookingId, status: 'Test mode, run 1, no action' };
       }
 
-      // --- REAL API CALL ---
-      // This is a placeholder for the actual API call to your flight tracking service.
-      // You would use the booking.flightNumber and booking.flightDate.
-      const flightApiUrl = `https://api.flightprovider.com/v1/flights?flightNumber=${booking.flightNumber}&date=${booking.flightDate.toDate().toISOString()}`;
+      // --- REAL API CALL for FlightAware AeroAPI ---
+      // See FlightAware AeroAPI documentation for more details on the response: https://flightaware.com/aeroapi/portal/documentation
+      const flightId = `${booking.flightNumber}-${booking.flightDate.toDate().toISOString().split('T')[0]}`;
+      const flightApiUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${flightId}`;
       
       // const response = await fetch(flightApiUrl, {
-      //   headers: { 'X-API-Key': flightApiKey }
+      //   headers: { 'x-apikey': flightApiKey }
       // });
       // const flightData = await response.json();
-
+      
       // --- CRITICAL LOGIC ---
       // This is a placeholder for your analysis of the real API data.
-      const new_status = 'Landed'; // Placeholder: e.g., flightData.status
-      const new_estimated_arrival_time = new Date(); // Placeholder: e.g., new Date(flightData.estimated_arrival)
+      // You would replace these with actual values from the flightData object.
+      // For example: const new_status = flightData.flights[0]?.status;
+      const new_status = 'Landed'; // Placeholder: e.g., flightData.flights[0].status
+      const new_estimated_arrival_time = new Date(); // Placeholder: e.g., new Date(flightData.flights[0].estimated_on)
 
       const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000); // 4 hours after original flight time
 
-      if (new_status === 'Canceled' || new_estimated_arrival_time > predefined_no_show_window_time) {
+      if (new_status === 'Cancelled' || new_estimated_arrival_time > predefined_no_show_window_time) {
         await triggerProtectionAlert(bookingId);
         return { bookingId, status: `Alert triggered due to: ${new_status}` };
       }
