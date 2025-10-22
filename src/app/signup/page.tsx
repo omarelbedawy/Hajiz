@@ -21,7 +21,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -43,6 +43,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
   const auth = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -57,12 +58,14 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      await sendEmailVerification(userCredential.user);
+      setIsVerificationSent(true);
       toast({
-        title: 'Account created!',
-        description: 'You have been successfully signed up.',
+        title: 'Verification Email Sent!',
+        description: 'Please check your inbox to verify your account.',
       });
-      router.push('/dashboard');
+      // Don't redirect immediately, let user see the message.
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -72,6 +75,26 @@ export default function SignupPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (isVerificationSent) {
+    return (
+       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline">Check Your Email</CardTitle>
+            <CardDescription>
+              We&apos;ve sent a verification link to your email address. Please click the link to activate your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" asChild>
+              <Link href="/login">Back to Login</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

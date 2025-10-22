@@ -12,7 +12,7 @@ const alegreya = Alegreya({
 });
 
 export const metadata: Metadata = {
-  title: 'Hajj Booking Tracker',
+  title: 'Hajiz',
   description: 'Seamlessly track your Hajj and Umrah hotel and flight bookings.',
 };
 

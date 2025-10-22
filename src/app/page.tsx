@@ -23,7 +23,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-primary/70" />
         <div className="relative h-full flex flex-col items-center justify-center text-center text-primary-foreground p-4">
           <h1 className="text-4xl md:text-6xl font-headline font-bold drop-shadow-md">
-            Hajj Booking Tracker
+            Hajiz
           </h1>
           <p className="mt-4 max-w-2xl text-lg md:text-xl drop-shadow">
             Seamlessly track your Hajj and Umrah hotel and flight bookings.
@@ -72,7 +72,7 @@ export default function Home() {
 
       <footer className="border-t">
         <div className="container mx-auto py-6 px-4 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Hajj Booking Tracker. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Hajiz. All rights reserved.</p>
         </div>
       </footer>
     </div>
