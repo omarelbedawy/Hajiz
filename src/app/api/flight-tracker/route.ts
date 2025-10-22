@@ -5,8 +5,8 @@ import { collection, query, where, getDocs, Timestamp, updateDoc } from 'firebas
 // Placeholder for the function that will trigger your protection alert (e.g., send an email)
 async function triggerProtectionAlert(bookingId: string) {
   const emailApiKey = process.env.EMAIL_SERVICE_API_KEY;
-  if (!emailApiKey) {
-    console.error('EMAIL_SERVICE_API_KEY is not set.');
+  if (!emailApiKey || emailApiKey === "YOUR_EMAIL_SERVICE_KEY_HERE") {
+    console.error('EMAIL_SERVICE_API_KEY is not set. Cannot send alert.');
     return;
   }
   console.log(`CRITICAL ALERT: Calling protection alert for booking: ${bookingId}`);
@@ -17,9 +17,8 @@ async function triggerProtectionAlert(bookingId: string) {
 
 // This function can be run on a schedule (e.g., every 15 minutes) by a cron job service.
 export async function GET(request: Request) {
-  // NOTE: This now uses NEXT_PUBLIC_FLIGHT_API_KEY to be accessible by the API route
   const flightApiKey = process.env.FLIGHT_API_KEY;
-  if (!flightApiKey) {
+  if (!flightApiKey || flightApiKey === "YOUR_AVIATIONSTACK_API_KEY") {
     throw new Error('FLIGHT_API_KEY is not set in environment variables.');
   }
 
@@ -29,7 +28,7 @@ export async function GET(request: Request) {
     const futureDate = new Date(now.toDate().getTime() + 72 * 60 * 60 * 1000); // 72 hours from now
     const futureTimestamp = Timestamp.fromDate(futureDate);
 
-    const bookingsRef = collection(firestore, 'bookings'); // Assuming top-level 'bookings' collection
+    const bookingsRef = collection(firestore, 'bookings');
     const q = query(
       bookingsRef,
       where('status', '==', 'ReadyToTrack'),
@@ -48,8 +47,6 @@ export async function GET(request: Request) {
 
       // --- CRITICAL TESTING MODE ---
       if (booking.isTestMode === true) {
-        // On the second run for a test booking, force a critical delay status.
-        // This simulates detecting a major issue.
         const runCount = (booking.testRunCount || 0) + 1;
         await updateDoc(doc.ref, { testRunCount: runCount });
 
@@ -64,19 +61,24 @@ export async function GET(request: Request) {
       // See aviationstack documentation for more details on the response: https://aviationstack.com/documentation
       const flightApiUrl = `http://api.aviationstack.com/v1/flights?access_key=${flightApiKey}&flight_iata=${booking.flightNumber}`;
       
-      // const response = await fetch(flightApiUrl);
-      // const flightData = await response.json();
+      const response = await fetch(flightApiUrl);
+      const flightData = await response.json();
       
       // --- CRITICAL LOGIC (using aviationstack structure) ---
-      // This is a placeholder for your analysis of the real API data from aviationstack.
-      // You would replace these with actual values from the flightData.data[0] object.
-      // For example: const new_status = flightData.data[0]?.flight_status;
-      const new_status = 'landed'; // Placeholder: e.g., flightData.data[0].flight_status
-      const new_estimated_arrival_time = new Date(); // Placeholder: e.g., new Date(flightData.data[0].arrival.estimated)
+      // Check if data array exists and has entries
+      if (!flightData.data || flightData.data.length === 0) {
+        return { bookingId, status: `No flight data found for ${booking.flightNumber}` };
+      }
 
-      const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000); // 4 hours after original flight time
+      // We'll analyze the first result, which should be the most relevant.
+      const flightInfo = flightData.data[0];
+      const new_status = flightInfo.flight_status; // e.g., "scheduled", "landed", "cancelled", "delayed"
+      const new_estimated_arrival_time = flightInfo.arrival.estimated ? new Date(flightInfo.arrival.estimated) : null;
 
-      if (new_status === 'cancelled' || new_estimated_arrival_time > predefined_no_show_window_time) {
+      // 4 hours after original flight time
+      const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000);
+
+      if (new_status === 'cancelled' || (new_estimated_arrival_time && new_estimated_arrival_time > predefined_no_show_window_time)) {
         await triggerProtectionAlert(bookingId);
         return { bookingId, status: `Alert triggered due to: ${new_status}` };
       }
