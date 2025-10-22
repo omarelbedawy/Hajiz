@@ -24,9 +24,10 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { addBooking } from '@/lib/actions';
-import { useUser } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
@@ -76,6 +77,8 @@ type BookingFormValues = z.infer<typeof formSchema>;
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<BookingFormValues>({
@@ -96,26 +99,31 @@ export default function NewBookingPage() {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
+    if (!firestore) {
+      toast({ variant: 'destructive', title: 'Database Error', description: 'Firestore is not available.' });
+      return;
+    }
     setIsLoading(true);
 
-    // Transform data before sending
     const dataToSend = {
-      ...values,
-      pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
-      arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
+      userId: user.uid,
       hotelName: values.isTestMode ? '' : values.hotelName,
       hotelRef: values.isTestMode ? '' : values.hotelRef,
+      flightNumber: values.flightNumber,
+      pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
+      arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
+      flightDate: Timestamp.fromDate(values.flightDate),
       isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
+      status: 'Pending Verification',
+      isTestMode: values.isTestMode,
+      createdAt: Timestamp.now(),
     };
 
 
     try {
-      const result = await addBooking(dataToSend, user.uid);
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-      // Redirect is handled by server action, but we can show a toast.
+      await addDoc(collection(firestore, 'bookings'), dataToSend);
       toast({ title: 'Success!', description: 'Your booking has been saved.' });
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         variant: 'destructive',

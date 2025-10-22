@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase/admin';
+import { initializeFirebase } from '@/firebase';
 
 const formSchema = z.object({
   hotelName: z.string(),
@@ -26,13 +26,14 @@ export async function addBooking(data: BookingFormValues, userId: string) {
     }
 
     try {
+        // Note: We are writing to a top-level 'bookings' collection as required by the new API routes.
         await addDoc(collection(firestore, 'bookings'), {
             userId: userId,
-            hotelName: data.hotelName || '',
-            hotelRef: data.hotelRef || '',
+            hotelName: data.hotelName,
+            hotelRef: data.hotelRef,
             flightNumber: data.flightNumber,
-            pnr: data.pnr || '',
-            arrivalAirport: data.arrivalAirport || '',
+            pnr: data.pnr,
+            arrivalAirport: data.arrivalAirport,
             flightDate: Timestamp.fromDate(data.flightDate),
             isHajjUmrah: data.isHajjUmrah,
             status: 'Pending Verification',
