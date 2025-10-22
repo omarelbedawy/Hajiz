@@ -29,15 +29,47 @@ import { useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
 
 const formSchema = z.object({
-  hotelName: z.string().min(1, { message: 'Hotel name is required.' }),
-  hotelRef: z.string().min(1, { message: 'Booking reference is required.' }),
-  flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
-  pnr: z.string().length(6, { message: 'PNR must be exactly 6 characters.' }).transform(val => val.toUpperCase()),
-  arrivalAirport: z.string().length(3, { message: 'Airport code must be 3 characters.' }).transform(val => val.toUpperCase()),
-  flightDate: z.date({ required_error: 'Flight date is required.' }),
-  isHajjUmrah: z.boolean().default(false),
-  isTestMode: z.boolean().default(false),
-});
+    flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
+    flightDate: z.date({ required_error: 'Flight date is required.' }),
+    isTestMode: z.boolean().default(false),
+    // Conditional fields
+    hotelName: z.string(),
+    hotelRef: z.string(),
+    pnr: z.string(),
+    arrivalAirport: z.string(),
+    isHajjUmrah: z.boolean(),
+  }).superRefine((data, ctx) => {
+    if (!data.isTestMode) {
+      if (data.hotelName.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Hotel name is required.',
+          path: ['hotelName'],
+        });
+      }
+      if (data.hotelRef.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Booking reference is required.',
+          path: ['hotelRef'],
+        });
+      }
+      if (data.pnr.length !== 6) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'PNR must be exactly 6 characters.',
+          path: ['pnr'],
+        });
+      }
+      if (data.arrivalAirport.length !== 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Airport code must be 3 characters.',
+          path: ['arrivalAirport'],
+        });
+      }
+    }
+  });
 
 type BookingFormValues = z.infer<typeof formSchema>;
 
@@ -65,8 +97,20 @@ export default function NewBookingPage() {
       return;
     }
     setIsLoading(true);
+
+    // Transform data before sending
+    const dataToSend = {
+      ...values,
+      pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
+      arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
+      hotelName: values.isTestMode ? '' : values.hotelName,
+      hotelRef: values.isTestMode ? '' : values.hotelRef,
+      isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
+    };
+
+
     try {
-      const result = await addBooking(values, user.uid);
+      const result = await addBooking(dataToSend, user.uid);
       if (result?.error) {
         throw new Error(result.error);
       }
@@ -114,48 +158,15 @@ export default function NewBookingPage() {
                 </FormItem>
               )} />
 
-              {isTestMode ? (
-                 <>
-                  <Separator />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Test Flight Information</h3>
-                     <p className="text-sm text-muted-foreground mb-4">In test mode, you only need a flight number and a date to simulate tracking.</p>
-                    <div className="space-y-4">
-                         <FormField control={form.control} name="flightNumber" render={({ field }) => (
-                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV-TEST" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="flightDate" render={({ field }) => (
-                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
-                              <PopoverTrigger asChild><FormControl>
-                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button></FormControl></PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                              </PopoverContent>
-                            </Popover><FormMessage /></FormItem>
-                        )} />
-                    </div>
-                  </div>
-                 </>
-              ) : (
-                <>
-                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
-                    <div className="space-y-4">
-                      <FormField control={form.control} name="hotelName" render={({ field }) => (
-                        <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                      <FormField control={form.control} name="hotelRef" render={({ field }) => (
-                        <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                    </div>
-                  </div>
-                  <Separator />
-                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Flight Information</h3>
-                    <div className="space-y-4">
+              
+              <Separator />
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> {isTestMode ? 'Test Flight Information' : 'Flight Information'}</h3>
+                {isTestMode && <p className="text-sm text-muted-foreground mb-4">In test mode, you only need a flight number and a date to simulate tracking.</p>}
+                <div className="space-y-4">
+                  
+                  {!isTestMode ? (
+                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="flightNumber" render={({ field }) => (
                           <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
@@ -181,6 +192,42 @@ export default function NewBookingPage() {
                             </Popover><FormMessage /></FormItem>
                         )} />
                       </div>
+                    </>
+                  ) : (
+                    <>
+                       <FormField control={form.control} name="flightNumber" render={({ field }) => (
+                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV-TEST" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="flightDate" render={({ field }) => (
+                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
+                              <PopoverTrigger asChild><FormControl>
+                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
+                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button></FormControl></PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                              </PopoverContent>
+                            </Popover><FormMessage /></FormItem>
+                        )} />
+                    </>
+                  )}
+
+                </div>
+              </div>
+              
+              {!isTestMode && (
+                <>
+                  <Separator />
+                   <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
+                    <div className="space-y-4">
+                      <FormField control={form.control} name="hotelName" render={({ field }) => (
+                        <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="hotelRef" render={({ field }) => (
+                        <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
                     </div>
                   </div>
                   <Separator />
