@@ -60,26 +60,23 @@ export async function GET(request: Request) {
         return { bookingId, status: 'Test mode, run 1, no action' };
       }
 
-      // --- REAL API CALL for FlightAware AeroAPI ---
-      // See FlightAware AeroAPI documentation for more details on the response: https://flightaware.com/aeroapi/portal/documentation
-      const flightId = `${booking.flightNumber}-${booking.flightDate.toDate().toISOString().split('T')[0]}`;
-      const flightApiUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${flightId}`;
+      // --- REAL API CALL for aviationstack ---
+      // See aviationstack documentation for more details on the response: https://aviationstack.com/documentation
+      const flightApiUrl = `http://api.aviationstack.com/v1/flights?access_key=${flightApiKey}&flight_iata=${booking.flightNumber}`;
       
-      // const response = await fetch(flightApiUrl, {
-      //   headers: { 'x-apikey': flightApiKey }
-      // });
+      // const response = await fetch(flightApiUrl);
       // const flightData = await response.json();
       
-      // --- CRITICAL LOGIC ---
-      // This is a placeholder for your analysis of the real API data.
-      // You would replace these with actual values from the flightData object.
-      // For example: const new_status = flightData.flights[0]?.status;
-      const new_status = 'Landed'; // Placeholder: e.g., flightData.flights[0].status
-      const new_estimated_arrival_time = new Date(); // Placeholder: e.g., new Date(flightData.flights[0].estimated_on)
+      // --- CRITICAL LOGIC (using aviationstack structure) ---
+      // This is a placeholder for your analysis of the real API data from aviationstack.
+      // You would replace these with actual values from the flightData.data[0] object.
+      // For example: const new_status = flightData.data[0]?.flight_status;
+      const new_status = 'landed'; // Placeholder: e.g., flightData.data[0].flight_status
+      const new_estimated_arrival_time = new Date(); // Placeholder: e.g., new Date(flightData.data[0].arrival.estimated)
 
       const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000); // 4 hours after original flight time
 
-      if (new_status === 'Cancelled' || new_estimated_arrival_time > predefined_no_show_window_time) {
+      if (new_status === 'cancelled' || new_estimated_arrival_time > predefined_no_show_window_time) {
         await triggerProtectionAlert(bookingId);
         return { bookingId, status: `Alert triggered due to: ${new_status}` };
       }
