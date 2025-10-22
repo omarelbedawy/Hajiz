@@ -1,70 +1,48 @@
-/**
- * @fileoverview Firestore Security Rules for Hajj Booking Tracker.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user can only
- * access their own user document and the bookings associated with their account.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/bookings/{bookingId}: Stores booking information for a specific user.
- *
- * Key Security Decisions:
- * - Users can only create their own user document and manage their own bookings.
- * - Listing all users is disallowed.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces access control for user documents. Only the authenticated user can read and write their own profile.
+     * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create their own document at /users/user_abc.
-     * @allow (get, update, delete) - User with UID 'user_abc' can read/update/delete their own document at /users/user_abc.
-     * @deny (create) - User with UID 'user_xyz' cannot create a document at /users/user_abc.
-     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read/update/delete the document at /users/user_abc.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with ID 'user123' can create their profile.
+     *  request.auth.uid == 'user123'
+     * @allow (get, update, delete) - User with ID 'user123' can read/update/delete their profile.
+     *  request.auth.uid == 'user123'
+     * @deny (create) - User with ID 'user456' cannot create a profile with ID 'user123'.
+     *  request.auth.uid == 'user456'
+     * @principle Enforces strict user ownership for profile data.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-
       allow get: if isOwner(userId);
-      allow list: if false; // Listing all users is disallowed.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == userId; //Enforce immutability of userId
-      allow delete: if isOwner(userId) && resource != null;
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Enforces access control for booking documents. Only the user associated with the booking can read and write it.
-     * @path /users/{userId}/bookings/{bookingId}
-     * @allow (create) - User with UID 'user_abc' can create a booking at /users/user_abc/bookings/booking_123.
-     * @allow (get, update, delete) - User with UID 'user_abc' can read/update/delete their own booking at /users/user_abc/bookings/booking_123.
-     * @deny (create) - User with UID 'user_xyz' cannot create a booking at /users/user_abc/bookings/booking_123.
-     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read/update/delete the booking at /users/user_abc/bookings/booking_123.
-     * @principle Enforces document ownership for all operations within the user's booking subcollection.
+     * @description Controls access to booking information.
+     * @path /bookings/{bookingId}
+     * @allow (create) - User with ID 'user123' can create a booking with userId 'user123'.
+     *  request.auth.uid != null AND request.resource.data.userId == 'user123'
+     * @allow (get, update, delete) - User with ID 'user123' can read/update/delete their booking.
+     *  request.auth.uid != null AND resource.data.userId == 'user123'
+     * @deny (create) - User with ID 'user456' cannot create a booking with userId 'user123'.
+     *  request.auth.uid != null AND request.resource.data.userId == 'user123'
+     * @deny (update, delete) - User with ID 'user456' cannot update or delete booking with userId 'user123'.
+     *  request.auth.uid != null AND resource.data.userId == 'user123'
+     * @principle Enforces user-based access control for bookings based on the userId field.
      */
-    match /users/{userId}/bookings/{bookingId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId; //Enforce immutability of userId
-      allow delete: if isOwner(userId) && resource != null;
+    match /bookings/{bookingId} {
+      allow get: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow list: if false;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }
