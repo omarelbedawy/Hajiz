@@ -31,10 +31,7 @@
       },
       "required": [
         "id",
-        "email",
-        "firstName",
-        "lastName",
-        "createdAt"
+        "email"
       ]
     },
     "Booking": {
@@ -63,6 +60,11 @@
           "type": "string",
           "description": "Hotel booking reference or confirmation number."
         },
+        "hotelEmail": {
+          "type": "string",
+          "description": "The official email address of the hotel, parsed from the confirmation email.",
+          "format": "email"
+        },
         "flightNumber": {
           "type": "string",
           "description": "Flight number for the booking."
@@ -82,11 +84,15 @@
         },
         "status": {
           "type": "string",
-          "description": "Status of the booking (e.g., Pending Verification, Confirmed, Cancelled)."
+          "description": "Status of the booking (e.g., Pending Verification, ReadyToTrack, Confirmed, Cancelled)."
         },
         "isTestMode": {
           "type": "boolean",
-          "description": "Flag indicating whether the booking is in test mode."
+          "description": "Flag indicating whether the booking is in test mode for the flight tracker."
+        },
+        "testRunCount": {
+          "type": "number",
+          "description": "Internal counter for test mode runs of the flight tracker."
         },
         "createdAt": {
           "type": "string",
@@ -125,7 +131,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information. Bookings are stored as a subcollection within each user document.",
+          "description": "Stores user profile information.",
           "params": [
             {
               "name": "userId",
@@ -135,18 +141,14 @@
         }
       },
       {
-        "path": "/users/{userId}/bookings/{bookingId}",
+        "path": "/bookings/{bookingId}",
         "definition": {
           "entityName": "Booking",
           "schema": {
             "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores booking information for a specific user. Access is restricted to the user who owns the booking, based on the userId in the path.",
+          "description": "Stores all booking information. Access can be restricted based on the userId field within the document.",
           "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
             {
               "name": "bookingId",
               "description": "Unique identifier for the booking."
@@ -155,6 +157,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to manage user data and booking information for the Hajj Booking Tracker application. User data is stored under the `/users/{userId}` path, providing a private space for each user. Bookings are stored as subcollections within each user's document (`/users/{userId}/bookings/{bookingId}`), reflecting the 1:N relationship between users and bookings. This structure leverages path-based ownership, enabling simple and efficient security rules based on the `request.auth.uid`. This design inherently supports Authorization Independence because access control is determined by the user ID present in the path. The QAPs are supported because the `list` operation only requires knowledge of the user’s `uid`, enabling listing of bookings."
+    "reasoning": "The Firestore structure is updated to use a top-level 'bookings' collection. This decouples bookings from users, which is more scalable and simplifies queries for the backend cron jobs (API routes) that need to scan all bookings regardless of the user. User-specific data remains in the '/users/{userId}' path. Security rules will be configured to ensure users can only access their own bookings by checking the 'userId' field within each booking document."
   }
 }

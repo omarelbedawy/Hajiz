@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { CalendarIcon, Hotel, Loader2, Plane } from 'lucide-react';
+import { CalendarIcon, Hotel, Loader2, Plane, TestTube } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { addBooking } from '@/lib/actions';
 import { useUser } from '@/firebase';
+import { Switch } from '@/components/ui/switch';
 
 const formSchema = z.object({
   hotelName: z.string().min(1, { message: 'Hotel name is required.' }),
@@ -35,6 +36,7 @@ const formSchema = z.object({
   arrivalAirport: z.string().length(3, { message: 'Airport code must be 3 characters.' }).transform(val => val.toUpperCase()),
   flightDate: z.date({ required_error: 'Flight date is required.' }),
   isHajjUmrah: z.boolean().default(false),
+  isTestMode: z.boolean().default(false),
 });
 
 type BookingFormValues = z.infer<typeof formSchema>;
@@ -53,6 +55,7 @@ export default function NewBookingPage() {
       pnr: '',
       arrivalAirport: '',
       isHajjUmrah: false,
+      isTestMode: false,
     },
   });
 
@@ -141,6 +144,25 @@ export default function NewBookingPage() {
                     </div>
                   </FormItem>
                 )} />
+              <FormField control={form.control} name="isTestMode" render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base flex items-center">
+                      <TestTube className="mr-2 h-5 w-5 text-primary"/>
+                      Test Mode
+                    </FormLabel>
+                    <FormDescription>
+                      Enable this to test the critical alert system without a real flight.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )} />
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Booking

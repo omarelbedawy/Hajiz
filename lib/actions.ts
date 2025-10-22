@@ -14,6 +14,7 @@ const formSchema = z.object({
   arrivalAirport: z.string(),
   flightDate: z.date(),
   isHajjUmrah: z.boolean(),
+  isTestMode: z.boolean(),
 });
 
 type BookingFormValues = z.infer<typeof formSchema>;
@@ -25,7 +26,8 @@ export async function addBooking(data: BookingFormValues, userId: string) {
     }
 
     try {
-        await addDoc(collection(firestore, 'users', userId, 'bookings'), {
+        // Note: We are writing to a top-level 'bookings' collection as required by the new API routes.
+        await addDoc(collection(firestore, 'bookings'), {
             userId: userId,
             hotelName: data.hotelName,
             hotelRef: data.hotelRef,
@@ -35,7 +37,7 @@ export async function addBooking(data: BookingFormValues, userId: string) {
             flightDate: Timestamp.fromDate(data.flightDate),
             isHajjUmrah: data.isHajjUmrah,
             status: 'Pending Verification',
-            isTestMode: false,
+            isTestMode: data.isTestMode,
             createdAt: Timestamp.now(),
         });
     } catch (error) {
