@@ -25,7 +25,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { addBooking } from '@/lib/actions';
-import { useAuth } from '@/context/auth-context';
+import { useUser } from '@/firebase';
 
 const formSchema = z.object({
   hotelName: z.string().min(1, { message: 'Hotel name is required.' }),
@@ -41,7 +41,7 @@ type BookingFormValues = z.infer<typeof formSchema>;
 
 export default function NewBookingPage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<BookingFormValues>({

@@ -11,9 +11,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Check if all required environment variables are present
+const isConfigComplete =
+  firebaseConfig.apiKey &&
+  firebaseConfig.authDomain &&
+  firebaseConfig.projectId &&
+  firebaseConfig.storageBucket &&
+  firebaseConfig.messagingSenderId &&
+  firebaseConfig.appId;
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app = !getApps().length && isConfigComplete ? initializeApp(firebaseConfig) : (getApps().length > 0 ? getApp() : null);
+
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
 
 export { app, auth, db };

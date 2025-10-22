@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import { Plane, LogOut, LayoutDashboard, PlusCircle } from 'lucide-react';
 import {
@@ -13,12 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
+import { useAuth, useUser } from '@/firebase';
 
 export default function Header() {
-  const { user, loading } = useAuth();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -42,7 +42,7 @@ export default function Header() {
           <span className="font-headline">Hajj Tracker</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
-          {loading ? (
+          {isUserLoading ? (
             <Skeleton className="h-8 w-8 rounded-full" />
           ) : user ? (
             <DropdownMenu>

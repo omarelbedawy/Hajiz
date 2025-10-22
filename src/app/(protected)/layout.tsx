@@ -1,19 +1,19 @@
 'use client';
-import { useAuth } from '@/context/auth-context';
+import { useUser } from '@/firebase';
 import { redirect } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isUserLoading && !user) {
       redirect('/login');
     }
-  }, [user, loading]);
+  }, [user, isUserLoading]);
 
-  if (loading) {
+  if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

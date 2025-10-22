@@ -7,12 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useAuth } from '@/context/auth-context';
+import { useUser } from '@/firebase';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
 
   return (
     <div className="container mx-auto py-8 px-4">
