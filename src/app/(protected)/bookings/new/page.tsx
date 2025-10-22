@@ -114,7 +114,7 @@ export default function NewBookingPage() {
       arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
       flightDate: Timestamp.fromDate(values.flightDate),
       isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
-      status: 'Pending Verification',
+      status: 'ReadyToTrack', // << CHANGED
       isTestMode: values.isTestMode,
       createdAt: Timestamp.now(),
     };
@@ -122,7 +122,7 @@ export default function NewBookingPage() {
 
     try {
       await addDoc(collection(firestore, 'bookings'), dataToSend);
-      toast({ title: 'Success!', description: 'Your booking has been saved.' });
+      toast({ title: 'Success!', description: 'Your booking is now being tracked.' });
       router.push('/dashboard');
     } catch (error: any) {
       toast({
