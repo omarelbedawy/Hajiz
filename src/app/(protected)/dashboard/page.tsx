@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 export default function DashboardPage() {
@@ -29,17 +29,20 @@ export default function DashboardPage() {
   const { data: bookings, isLoading, error } = useCollection(bookingsQuery);
 
   const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'ReadyToTrack':
+    const s = status.toLowerCase();
+    switch (s) {
+      case 'readytotrack':
+      case 'scheduled':
         return 'default';
-      case 'Pending Verification':
+      case 'pending verification':
         return 'secondary';
-      case 'Confirmed':
-      case 'Landed':
-        return 'success'; // A success variant would be good here.
-      case 'Cancelled':
-      case 'CRITICAL_DELAY':
+      case 'landed':
+        return 'success';
+      case 'cancelled':
+      case 'critical_delay':
         return 'destructive';
+      case 'delayed':
+        return 'destructive'; // Or another color
       default:
         return 'outline';
     }
@@ -96,7 +99,7 @@ export default function DashboardPage() {
                        </div>
                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
                          <Hotel className="h-4 w-4" />
-                         <span>{booking.hotelName}</span>
+                         <span>{booking.hotelName || 'N/A'}</span>
                        </div>
                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
                          <Calendar className="h-4 w-4" />

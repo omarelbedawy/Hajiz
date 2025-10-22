@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/admin';
-import { collection, query, where, getDocs, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, updateDoc, doc } from 'firebase/firestore';
 
 // Placeholder for the function that will trigger your protection alert (e.g., send an email)
 async function triggerProtectionAlert(bookingId: string) {
@@ -29,9 +29,10 @@ export async function GET(request: Request) {
     const futureTimestamp = Timestamp.fromDate(futureDate);
 
     const bookingsRef = collection(firestore, 'bookings');
+    // We only track flights that are ready and haven't been completed (e.g., Landed)
     const q = query(
       bookingsRef,
-      where('status', '==', 'ReadyToTrack'),
+      where('status', 'in', ['ReadyToTrack', 'scheduled', 'delayed']),
       where('flightDate', '<=', futureTimestamp)
     );
 
@@ -41,17 +42,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'No flights to track at this time.' });
     }
 
-    const trackingPromises = querySnapshot.docs.map(async (doc) => {
-      const booking = doc.data();
-      const bookingId = doc.id;
+    const trackingPromises = querySnapshot.docs.map(async (document) => {
+      const booking = document.data();
+      const bookingId = document.id;
+      const bookingRef = doc(firestore, 'bookings', bookingId);
 
       // --- CRITICAL TESTING MODE ---
       if (booking.isTestMode === true) {
         const runCount = (booking.testRunCount || 0) + 1;
-        await updateDoc(doc.ref, { testRunCount: runCount });
+        await updateDoc(bookingRef, { testRunCount: runCount });
 
         if (runCount >= 2) {
           await triggerProtectionAlert(bookingId);
+          await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' });
           return { bookingId, status: 'Forced CRITICAL_DELAY for testing' };
         }
         return { bookingId, status: 'Test mode, run 1, no action' };
@@ -73,13 +76,18 @@ export async function GET(request: Request) {
       // We'll analyze the first result, which should be the most relevant.
       const flightInfo = flightData.data[0];
       const new_status = flightInfo.flight_status; // e.g., "scheduled", "landed", "cancelled", "delayed"
-      const new_estimated_arrival_time = flightInfo.arrival.estimated ? new Date(flightInfo.arrival.estimated) : null;
+      
+      // Update the booking status in Firestore
+      await updateDoc(bookingRef, { status: new_status });
 
+      // Check for critical conditions
+      const new_estimated_arrival_time = flightInfo.arrival.estimated ? new Date(flightInfo.arrival.estimated) : null;
       // 4 hours after original flight time
       const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000);
 
       if (new_status === 'cancelled' || (new_estimated_arrival_time && new_estimated_arrival_time > predefined_no_show_window_time)) {
         await triggerProtectionAlert(bookingId);
+        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' }); // Also update status for critical delay
         return { bookingId, status: `Alert triggered due to: ${new_status}` };
       }
 
