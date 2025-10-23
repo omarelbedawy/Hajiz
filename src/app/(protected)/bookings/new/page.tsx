@@ -41,35 +41,34 @@ const formSchema = z.object({
     arrivalAirport: z.string(),
     isHajjUmrah: z.boolean(),
   }).superRefine((data, ctx) => {
-    if (!data.isTestMode) {
-      if (data.hotelName.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Hotel name is required.',
-          path: ['hotelName'],
-        });
-      }
-      if (data.hotelRef.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Booking reference is required.',
-          path: ['hotelRef'],
-        });
-      }
-      if (data.pnr.length !== 6) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'PNR must be exactly 6 characters.',
-          path: ['pnr'],
-        });
-      }
-      if (data.arrivalAirport.length !== 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Airport code must be 3 characters.',
-          path: ['arrivalAirport'],
-        });
-      }
+    // These fields are always required now, regardless of test mode
+    if (data.hotelName.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Hotel name is required.',
+        path: ['hotelName'],
+      });
+    }
+    if (data.hotelRef.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Booking reference is required.',
+        path: ['hotelRef'],
+      });
+    }
+    if (data.pnr.length !== 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'PNR must be exactly 6 characters.',
+        path: ['pnr'],
+      });
+    }
+    if (data.arrivalAirport.length !== 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Airport code must be 3 characters.',
+        path: ['arrivalAirport'],
+      });
     }
   });
 
@@ -136,13 +135,8 @@ export default function NewBookingPage() {
     setIsLoading(true);
     
     try {
-      let status = 'Pending Verification';
-      if (values.isTestMode) {
-          status = 'CRITICAL_DELAY'; // For test mode, set status directly
-      } else {
-          // For real flights, fetch status instantly
-          status = await getLiveFlightStatus(values.flightNumber, values.flightDate, values.arrivalAirport);
-      }
+      // Always fetch status from the API, regardless of test mode
+      const status = await getLiveFlightStatus(values.flightNumber, values.flightDate, values.arrivalAirport);
       
       const dataToSend = {
         userId: user.uid,
@@ -191,7 +185,7 @@ export default function NewBookingPage() {
                       Test Mode
                     </FormLabel>
                     <FormDescription>
-                      Enable this to test the critical alert system without a real flight.
+                      The booking status will be fetched from the live API.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -206,26 +200,21 @@ export default function NewBookingPage() {
               
               <Separator />
               <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> {isTestMode ? 'Test Flight Information' : 'Flight Information'}</h3>
-                {isTestMode && <p className="text-sm text-muted-foreground mb-4">In test mode, you only need a flight number and a date to simulate tracking.</p>}
+                <h3 className="text-lg font-semibold mb-4 flex items-center"><Plane className="mr-2 h-5 w-5 text-primary" /> Flight Information</h3>
                 <div className="space-y-4">
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="flightNumber" render={({ field }) => (
                       <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    {!isTestMode && (
-                      <FormField control={form.control} name="pnr" render={({ field }) => (
+                    <FormField control={form.control} name="pnr" render={({ field }) => (
                       <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {!isTestMode && (
-                        <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
-                          <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                     )}
+                     <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
+                       <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
+                     )} />
                     <FormField control={form.control} name="flightDate" render={({ field }) => (
                       <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
                           <PopoverTrigger asChild><FormControl>
@@ -242,32 +231,28 @@ export default function NewBookingPage() {
                 </div>
               </div>
               
-              {!isTestMode && (
-                <>
-                  <Separator />
-                   <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
-                    <div className="space-y-4">
-                      <FormField control={form.control} name="hotelName" render={({ field }) => (
-                        <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                      <FormField control={form.control} name="hotelRef" render={({ field }) => (
-                        <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
+              <Separator />
+               <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
+                <div className="space-y-4">
+                  <FormField control={form.control} name="hotelName" render={({ field }) => (
+                    <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="hotelRef" render={({ field }) => (
+                    <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+              </div>
+              <Separator />
+              <FormField control={form.control} name="isHajjUmrah" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>This is for a Hajj or Umrah trip</FormLabel>
+                      <FormDescription>Select this if the booking is related to your pilgrimage.</FormDescription>
                     </div>
-                  </div>
-                  <Separator />
-                  <FormField control={form.control} name="isHajjUmrah" render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>This is for a Hajj or Umrah trip</FormLabel>
-                          <FormDescription>Select this if the booking is related to your pilgrimage.</FormDescription>
-                        </div>
-                      </FormItem>
-                    )} />
-                </>
-              )}
+                  </FormItem>
+                )} />
              
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
