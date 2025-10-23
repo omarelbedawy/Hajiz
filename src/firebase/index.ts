@@ -9,16 +9,10 @@ let firebaseApp: FirebaseApp;
 let auth: Auth;
 let firestore: Firestore;
 
+// This function now correctly handles initialization and is safe to be called multiple times.
 function initializeFirebase(): { firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore } {
   if (!getApps().length) {
-    try {
-      firebaseApp = initializeApp();
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
       firebaseApp = initializeApp(firebaseConfig);
-    }
   } else {
     firebaseApp = getApp();
   }
@@ -32,3 +26,5 @@ export { initializeFirebase };
 export * from './provider';
 export * from './client-provider';
 export * from './auth/use-user';
+export * from './firestore/use-collection';
+export * from './firestore/use-doc';

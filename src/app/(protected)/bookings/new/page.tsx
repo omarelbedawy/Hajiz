@@ -24,9 +24,10 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useUser } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
-import { addBooking } from '@/lib/actions';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 
 const formSchema = z.object({
@@ -74,9 +75,44 @@ const formSchema = z.object({
 
 type BookingFormValues = z.infer<typeof formSchema>;
 
+async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string) {
+    const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
+    const flightDateStr = flightDate.toISOString().split('T')[0];
+    const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
+
+    try {
+        const response = await fetch(flightApiUrl, {
+            headers: {
+                'X-RapidAPI-Key': flightApiKey,
+                'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+            }
+        });
+
+        if (!response.ok) {
+            console.error(`AeroDataBox API call failed for ${flightNumber}: ${response.status}`);
+            return 'Flight Not Found';
+        }
+
+        const flightDataArray = await response.json();
+        if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
+            return 'Flight Not Found';
+        }
+
+        const flightInfo = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport?.toLowerCase()) || flightDataArray[0];
+        return flightInfo.status || 'Not Tracked';
+
+    } catch (error) {
+        console.error("Error fetching flight status: ", error);
+        return 'API Error';
+    }
+}
+
+
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<BookingFormValues>({
@@ -93,25 +129,45 @@ export default function NewBookingPage() {
   });
 
   async function onSubmit(values: BookingFormValues) {
-    if (!user) {
+    if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
     setIsLoading(true);
     
     try {
-      // Using a server action for instant status fetch
-      await addBooking(values, user.uid);
+      let status = 'Pending Verification';
+      if (values.isTestMode) {
+          status = 'CRITICAL_DELAY'; // For test mode, set status directly
+      } else {
+          // For real flights, fetch status instantly
+          status = await getLiveFlightStatus(values.flightNumber, values.flightDate, values.arrivalAirport);
+      }
+      
+      const dataToSend = {
+        userId: user.uid,
+        hotelName: values.isTestMode ? '' : values.hotelName,
+        hotelRef: values.isTestMode ? '' : values.hotelRef,
+        flightNumber: values.flightNumber,
+        pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
+        arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
+        flightDate: Timestamp.fromDate(values.flightDate),
+        isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
+        status: status, 
+        isTestMode: values.isTestMode,
+        createdAt: Timestamp.now(),
+      };
+
+      await addDoc(collection(firestore, 'bookings'), dataToSend);
       toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
+      router.push('/dashboard');
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
         description: error.message || 'Could not save the booking.',
       });
-    } finally {
-      // The redirect happens in the server action, so we may not need to set loading to false
-      // but it's good practice in case of an error.
       setIsLoading(false);
     }
   }
