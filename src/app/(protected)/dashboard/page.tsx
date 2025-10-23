@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +14,7 @@ import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { useMemo } from 'react';
-import { Badge, badgeVariants } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 export default function DashboardPage() {
@@ -40,9 +41,8 @@ export default function DashboardPage() {
         return 'success';
       case 'cancelled':
       case 'critical_delay':
-        return 'destructive';
       case 'delayed':
-        return 'destructive'; // Or another color
+        return 'destructive';
       default:
         return 'outline';
     }
