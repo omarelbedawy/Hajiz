@@ -31,7 +31,6 @@ export async function GET(request: Request) {
 
     const bookingsRef = collection(firestore, 'bookings');
     // Find all bookings that are ready to be tracked and are within the 72-hour window.
-    // This includes initial bookings and those already being monitored.
     const q = query(
       bookingsRef,
       where('status', 'in', ['ReadyToTrack', 'scheduled', 'delayed']),
@@ -51,7 +50,7 @@ export async function GET(request: Request) {
 
       // --- IMMEDIATE TEST MODE LOGIC ---
       if (booking.isTestMode === true) {
-        // On the first run for a test booking, immediately set to CRITICAL_DELAY.
+        // For test bookings, immediately set to CRITICAL_DELAY and alert.
         await triggerProtectionAlert(bookingId);
         await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' });
         return { bookingId, status: 'Test Mode: Forced CRITICAL_DELAY' };
@@ -71,7 +70,8 @@ export async function GET(request: Request) {
       
       // --- LIVE STATUS PROCESSING ---
       if (!flightData.data || flightData.data.length === 0) {
-        // If no data, we can't determine a status. We'll try again next time.
+        // No live data found, maybe the flight is too far in the future or the number is wrong.
+        // We will keep its status as is and try again later.
         return { bookingId, status: `No live flight data found for ${booking.flightNumber}` };
       }
 

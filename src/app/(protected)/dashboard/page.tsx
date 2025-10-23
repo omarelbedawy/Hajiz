@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const { data: bookings, isLoading, error } = useCollection(bookingsQuery);
 
   const getStatusVariant = (status: string) => {
+    if (!status) return 'outline';
     const s = status.toLowerCase();
     switch (s) {
       case 'readytotrack':
