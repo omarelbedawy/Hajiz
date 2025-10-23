@@ -24,11 +24,10 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { addBooking } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
-
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
@@ -41,10 +40,10 @@ const formSchema = z.object({
     isHajjUmrah: z.boolean(),
   }).superRefine((data, ctx) => {
     if (data.isTestMode) {
-      // In test mode, only flight number and date are truly required (and they are already handled by zod)
+      // In test mode, only flight number and date are required
       return;
     }
-    // In non-test mode, all fields are required
+    // In non-test mode, more fields are required
     if (data.hotelName.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -77,57 +76,10 @@ const formSchema = z.object({
 
 type BookingFormValues = z.infer<typeof formSchema>;
 
-async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string) {
-    const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
-    const flightDateStr = flightDate.toISOString().split('T')[0];
-    const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
-
-    try {
-        const response = await fetch(flightApiUrl, {
-            headers: {
-                'X-RapidAPI-Key': flightApiKey,
-                'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
-            }
-        });
-
-        if (!response.ok) {
-            console.error(`AeroDataBox API call failed for ${flightNumber}: ${response.status}`);
-            return 'Flight Not Found';
-        }
-
-        const flightDataArray = await response.json();
-        
-        if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
-            return 'Flight Not Found';
-        }
-
-        // If an arrival airport is provided (not in test mode), find the specific flight leg.
-        // This makes the result much more accurate when multiple legs exist.
-        if (arrivalAirport) {
-            const specificFlight = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport.toLowerCase());
-            if (specificFlight) {
-                return specificFlight.status || 'Not Tracked';
-            }
-            // If we have an arrival airport but no match for it on the given date, it's not the flight we want.
-            return 'Flight Not Found';
-        }
-        
-        // For test mode (or if no arrival airport is given for some reason), take the first flight.
-        // Since we are already querying by date, this is now much safer than before.
-        const flightInfo = flightDataArray[0];
-        return flightInfo.status || 'Not Tracked';
-
-    } catch (error) {
-        console.error("Error fetching flight status: ", error);
-        return 'API Error';
-    }
-}
-
 
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -145,33 +97,19 @@ export default function NewBookingPage() {
   });
 
   async function onSubmit(values: BookingFormValues) {
-    if (!user || !firestore) {
+    if (!user) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
     setIsLoading(true);
     
     try {
-      // Always fetch status from the API, regardless of test mode
-      const status = await getLiveFlightStatus(values.flightNumber, values.flightDate, values.arrivalAirport);
-      
-      const dataToSend = {
-        userId: user.uid,
-        hotelName: values.hotelName,
-        hotelRef: values.hotelRef,
-        flightNumber: values.flightNumber.toUpperCase(),
-        pnr: values.pnr.toUpperCase(),
-        arrivalAirport: values.arrivalAirport.toUpperCase(),
-        flightDate: Timestamp.fromDate(values.flightDate),
-        isHajjUmrah: values.isHajjUmrah,
-        status: status, 
-        isTestMode: values.isTestMode,
-        createdAt: Timestamp.now(),
-      };
-
-      await addDoc(collection(firestore, 'bookings'), dataToSend);
+      const result = await addBooking(values, user.uid);
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+      // Redirect is handled by the server action
       toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
-      router.push('/dashboard');
 
     } catch (error: any) {
       toast({
@@ -179,7 +117,8 @@ export default function NewBookingPage() {
         title: 'Uh oh! Something went wrong.',
         description: error.message || 'Could not save the booking.',
       });
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   }
 
