@@ -1,40 +1,42 @@
-import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
+'use server';
+
+import { initializeApp, getApps, getApp, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { credential } from 'firebase-admin';
 
-// IMPORTANT: This file is configured for a serverless environment like Cloud Functions or Next.js API routes.
-// It expects GOOGLE_APPLICATION_CREDENTIALS to be set in the environment.
-
-function getServiceAccount() {
+// This function safely gets and parses the service account key.
+function getServiceAccount(): ServiceAccount | undefined {
+    const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (!serviceAccountJson) {
+        // This is expected in a deployed environment where application default credentials are used.
+        console.warn('GOOGLE_APPLICATION_CREDENTIALS not set. Using application default credentials.');
+        return undefined;
+    }
     try {
-        const serviceAccountKey = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-        if (!serviceAccountKey) {
-            console.warn('GOOGLE_APPLICATION_CREDENTIALS env var is not set. Using default credentials. This is expected for local dev but not in production.');
-            return undefined; // Use default credentials if not set
-        }
-        return JSON.parse(serviceAccountKey);
+        return JSON.parse(serviceAccountJson);
     } catch (e) {
         console.error('Error parsing GOOGLE_APPLICATION_CREDENTIALS:', e);
-        throw new Error('Could not parse service account credentials. Make sure the environment variable is set correctly.');
+        // If parsing fails, it's better to return undefined and let initialization fail clearly
+        // than to proceed with a broken configuration.
+        return undefined;
     }
 }
 
+// Prepare the admin config.
+const serviceAccount = getServiceAccount();
+const firebaseAdminConfig = serviceAccount ? { credential: cert(serviceAccount) } : {};
 
-const firebaseAdminConfig = {
-  // Use credential.cert() only if the service account is successfully parsed
-  // otherwise, allow initializeApp to use default credentials.
-  credential: getServiceAccount() ? credential.cert(getServiceAccount()!) : undefined,
-};
 
-export function initializeFirebase(): { firebaseApp: App; firestore: Firestore } {
-  if (!getApps().length) {
+export async function initializeFirebase(): Promise<{ firebaseApp: App; firestore: Firestore }> {
+  // Check if the default app is already initialized.
+  if (getApps().length === 0) {
     const firebaseApp = initializeApp(firebaseAdminConfig);
-    return getSdks(firebaseApp);
-  }
-  return getSdks(getApp());
-}
-
-function getSdks(firebaseApp: App) {
+    return {
+        firebaseApp,
+        firestore: getFirestore(firebaseApp)
+    };
+  } 
+  
+  const firebaseApp = getApp();
   return {
     firebaseApp,
     firestore: getFirestore(firebaseApp)
