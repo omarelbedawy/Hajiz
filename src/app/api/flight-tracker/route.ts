@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       const flightInfo = flightData.data[0];
       const new_status = flightInfo.flight_status; // e.g., "scheduled", "landed", "cancelled", "delayed"
       
-      // Update the booking status in Firestore
+      // *** BUG FIX: Update the booking status in Firestore ***
       await updateDoc(bookingRef, { status: new_status });
 
       // Check for critical conditions
