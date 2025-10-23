@@ -4,12 +4,13 @@ import { z } from 'zod';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase/admin';
+import { initializeFirebase } from '@/firebase'; // Using client-side init
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
     flightDate: z.date({ required_error: 'Flight date is required.' }),
     isTestMode: z.boolean().default(false),
+    // Conditional fields
     hotelName: z.string(),
     hotelRef: z.string(),
     pnr: z.string(),
@@ -69,16 +70,17 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
 
 export async function addBooking(values: BookingFormValues, userId: string) {
-    const { firestore } = initializeFirebase();
+    const { firestore } = initializeFirebase(); // Using client SDK now
     if (!userId) {
-        return { success: false, error: 'User not authenticated.' };
+        throw new Error('User not authenticated.');
     }
 
-    let status = 'ReadyToTrack';
+    let status = 'Pending Verification';
 
     if (values.isTestMode) {
-        status = 'CRITICAL_DELAY';
+        status = 'CRITICAL_DELAY'; // For test mode, set status directly
     } else {
+        // For real flights, fetch status instantly
         status = await getLiveFlightStatus(values.flightNumber, values.flightDate, values.arrivalAirport);
     }
     
@@ -100,7 +102,7 @@ export async function addBooking(values: BookingFormValues, userId: string) {
         await addDoc(collection(firestore, 'bookings'), dataToSend);
     } catch (error) {
         console.error("Error adding document: ", error);
-        return { success: false, error: 'Failed to save booking to the database.' };
+        throw new Error('Failed to save booking to the database.');
     }
 
     revalidatePath('/dashboard');
