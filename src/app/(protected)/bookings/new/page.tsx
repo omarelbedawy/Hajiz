@@ -24,10 +24,10 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { addBooking } from '@/lib/actions';
+
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
@@ -77,8 +77,6 @@ type BookingFormValues = z.infer<typeof formSchema>;
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<BookingFormValues>({
@@ -99,38 +97,21 @@ export default function NewBookingPage() {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
-    if (!firestore) {
-      toast({ variant: 'destructive', title: 'Database Error', description: 'Firestore is not available.' });
-      return;
-    }
     setIsLoading(true);
-
-    const dataToSend = {
-      userId: user.uid,
-      hotelName: values.isTestMode ? '' : values.hotelName,
-      hotelRef: values.isTestMode ? '' : values.hotelRef,
-      flightNumber: values.flightNumber,
-      pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
-      arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
-      flightDate: Timestamp.fromDate(values.flightDate),
-      isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
-      status: 'ReadyToTrack', // << CHANGED
-      isTestMode: values.isTestMode,
-      createdAt: Timestamp.now(),
-    };
-
-
+    
     try {
-      await addDoc(collection(firestore, 'bookings'), dataToSend);
-      toast({ title: 'Success!', description: 'Your booking is now being tracked.' });
-      router.push('/dashboard');
+      // Using a server action for instant status fetch
+      await addBooking(values, user.uid);
+      toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
-        description: error.message,
+        description: error.message || 'Could not save the booking.',
       });
     } finally {
+      // The redirect happens in the server action, so we may not need to set loading to false
+      // but it's good practice in case of an error.
       setIsLoading(false);
     }
   }
