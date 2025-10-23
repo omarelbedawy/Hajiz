@@ -102,17 +102,13 @@ export default function NewBookingPage() {
     setIsLoading(true);
     
     try {
-      // The server action now handles redirection and errors.
-      // We wrap this in a try/catch in case the server action itself throws an unhandled exception,
-      // or if the network call to the server action fails.
-      await addBooking(user.uid, values);
+      await addBooking(values, user.uid);
 
       // Since the server action redirects, this part may not even be reached upon success.
       // It's here as a fallback.
       toast({ title: 'Success!', description: 'Your booking is being processed.' });
 
     } catch (error: any) {
-      // The server action is designed to return a structured error, but we'll handle any thrown errors too.
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
