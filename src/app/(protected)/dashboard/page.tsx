@@ -1,4 +1,3 @@
-
 'use client';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,25 +8,71 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useFirestore, useUser } from '@/firebase';
-import { PlusCircle, Loader2, Hotel, Plane, Calendar, Info } from 'lucide-react';
+import { PlusCircle, Loader2, Hotel, Plane, Calendar, Info, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { collection, query, where, Timestamp, doc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast';
+
 
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const bookingsQuery = useMemo(() => {
     if (!firestore || !user) return null;
-    // Query the top-level 'bookings' collection
     return query(collection(firestore, 'bookings'), where('userId', '==', user.uid));
   }, [firestore, user]);
 
   const { data: bookings, isLoading, error } = useCollection(bookingsQuery);
+  
+  const handleDelete = async (bookingId: string) => {
+    if (!firestore) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(firestore, 'bookings', bookingId));
+      toast({ title: "Success", description: "Booking deleted." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: "Could not delete booking." });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!firestore || !bookings || bookings.length === 0) return;
+    setIsDeleting(true);
+    try {
+      const batch = writeBatch(firestore);
+      bookings.forEach((booking) => {
+        const docRef = doc(firestore, 'bookings', booking.id);
+        batch.delete(docRef);
+      });
+      await batch.commit();
+      toast({ title: "Success", description: "All bookings have been deleted." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: "Could not delete all bookings." });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" => {
     if (!status) return 'outline';
@@ -42,6 +87,7 @@ export default function DashboardPage() {
       case 'flight not found':
         return 'secondary';
       case 'landed':
+      case 'arrived':
         return 'success';
       case 'cancelled':
       case 'canceled':
@@ -72,11 +118,36 @@ export default function DashboardPage() {
                 All your Hajj and Umrah related travel bookings.
               </CardDescription>
             </div>
-             <Button asChild>
-              <Link href="/bookings/new">
-                <PlusCircle className="mr-2 h-4 w-4" /> Add New Booking
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {bookings && bookings.length > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={isDeleting}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete all your bookings.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAll}>
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Continue'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              <Button asChild>
+                <Link href="/bookings/new">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add New Booking
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="border-t pt-6">
             {isLoading && (
@@ -96,7 +167,7 @@ export default function DashboardPage() {
              {!isLoading && bookings && bookings.length > 0 && (
               <div className="grid gap-6">
                 {bookings.map((booking) => (
-                  <Card key={booking.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 items-center">
+                  <Card key={booking.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 items-center group">
                     <div className="col-span-1 md:col-span-2 space-y-3">
                        <div className="flex items-center gap-3">
                          <Plane className="h-5 w-5 text-primary" />
@@ -120,6 +191,29 @@ export default function DashboardPage() {
                        <Badge variant={getStatusVariant(booking.status)} className="text-sm">
                          {booking.status}
                        </Badge>
+                     </div>
+                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4"/>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the booking for flight {booking.flightNumber}.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(booking.id)} disabled={isDeleting}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                      </div>
                   </Card>
                 ))}
