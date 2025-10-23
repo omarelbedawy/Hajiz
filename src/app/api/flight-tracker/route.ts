@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/admin';
 import { collection, query, where, getDocs, Timestamp, updateDoc, doc } from 'firebase/firestore';
@@ -49,18 +50,10 @@ export async function GET(request: Request) {
 
       // --- CRITICAL TESTING MODE ---
       if (booking.isTestMode === true) {
-        const runCount = (booking.testRunCount || 0) + 1;
-        
-        if (runCount >= 2) {
-          await triggerProtectionAlert(bookingId);
-          // In test mode, we'll use a specific status to show the alert was triggered.
-          await updateDoc(bookingRef, { testRunCount: runCount, status: 'CRITICAL_DELAY' });
-          return { bookingId, status: 'Forced CRITICAL_DELAY for testing' };
-        } else {
-          // On the first run, we just update the count.
-          await updateDoc(bookingRef, { testRunCount: runCount });
-          return { bookingId, status: 'Test mode, run 1, no action' };
-        }
+        // FIX: Immediately trigger the critical alert and update status on the first run.
+        await triggerProtectionAlert(bookingId);
+        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY', testRunCount: 1 });
+        return { bookingId, status: 'Forced CRITICAL_DELAY for testing' };
       }
 
       // --- REAL API CALL for aviationstack ---
