@@ -85,7 +85,7 @@ export async function addBooking(data: BookingFormValues, userId: string) {
             flightDate: Timestamp.fromDate(data.flightDate),
             isHajjUmrah: data.isHajjUmrah,
             status: status,
-            isTestMode: data.isTestMoe,
+            isTestMode: data.isTestMode,
             createdAt: Timestamp.now(),
         });
     } catch (error) {
