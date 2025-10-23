@@ -80,7 +80,6 @@ type BookingFormValues = z.infer<typeof formSchema>;
 async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string) {
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
     const flightDateStr = flightDate.toISOString().split('T')[0];
-    // This API endpoint searches by flight number and date.
     const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
 
     try {
@@ -98,23 +97,23 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
         const flightDataArray = await response.json();
         
-        // Handle cases where the API returns an empty array or no flights for the given date
         if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
             return 'Flight Not Found';
         }
 
         // If an arrival airport is provided (not in test mode), find the specific flight leg.
+        // This makes the result much more accurate when multiple legs exist.
         if (arrivalAirport) {
             const specificFlight = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport.toLowerCase());
             if (specificFlight) {
                 return specificFlight.status || 'Not Tracked';
             }
-            // If we have an arrival airport but no match, it's better to say not found than to show wrong data
+            // If we have an arrival airport but no match for it on the given date, it's not the flight we want.
             return 'Flight Not Found';
         }
         
-        // For test mode (or if no arrival airport is given), take the first flight in the list.
-        // This is now less likely to be wrong since we are querying by date.
+        // For test mode (or if no arrival airport is given for some reason), take the first flight.
+        // Since we are already querying by date, this is now much safer than before.
         const flightInfo = flightDataArray[0];
         return flightInfo.status || 'Not Tracked';
 

@@ -84,6 +84,7 @@ export default function DashboardPage() {
       case 'en-route':
         return 'default';
       case 'pending verification':
+      case 'not tracked':
       case 'flight not found':
         return 'secondary';
       case 'landed':
@@ -91,9 +92,8 @@ export default function DashboardPage() {
         return 'success';
       case 'cancelled':
       case 'canceled':
-      case 'critical_delay':
-      case 'delayed':
       case 'diverted':
+      case 'delayed':
         return 'destructive';
       default:
         return 'outline';
@@ -167,7 +167,7 @@ export default function DashboardPage() {
              {!isLoading && bookings && bookings.length > 0 && (
               <div className="grid gap-6">
                 {bookings.map((booking) => (
-                  <Card key={booking.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 items-center group">
+                  <Card key={booking.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 items-center group relative">
                     <div className="col-span-1 md:col-span-2 space-y-3">
                        <div className="flex items-center gap-3">
                          <Plane className="h-5 w-5 text-primary" />
