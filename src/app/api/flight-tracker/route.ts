@@ -50,14 +50,17 @@ export async function GET(request: Request) {
       // --- CRITICAL TESTING MODE ---
       if (booking.isTestMode === true) {
         const runCount = (booking.testRunCount || 0) + 1;
-        await updateDoc(bookingRef, { testRunCount: runCount });
-
+        
         if (runCount >= 2) {
           await triggerProtectionAlert(bookingId);
-          await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' });
+          // In test mode, we'll use a specific status to show the alert was triggered.
+          await updateDoc(bookingRef, { testRunCount: runCount, status: 'CRITICAL_DELAY' });
           return { bookingId, status: 'Forced CRITICAL_DELAY for testing' };
+        } else {
+          // On the first run, we just update the count.
+          await updateDoc(bookingRef, { testRunCount: runCount });
+          return { bookingId, status: 'Test mode, run 1, no action' };
         }
-        return { bookingId, status: 'Test mode, run 1, no action' };
       }
 
       // --- REAL API CALL for aviationstack ---
@@ -75,23 +78,33 @@ export async function GET(request: Request) {
 
       // We'll analyze the first result, which should be the most relevant.
       const flightInfo = flightData.data[0];
-      const new_status = flightInfo.flight_status; // e.g., "scheduled", "landed", "cancelled", "delayed"
+      const liveStatus = flightInfo.flight_status; // e.g., "scheduled", "landed", "cancelled", "delayed"
       
-      // *** BUG FIX: Update the booking status in Firestore ***
-      await updateDoc(bookingRef, { status: new_status });
+      // **BUG FIX:** Immediately update the booking status in Firestore with the live status.
+      // This is what the user will see on the dashboard.
+      await updateDoc(bookingRef, { status: liveStatus });
 
-      // Check for critical conditions
-      const new_estimated_arrival_time = flightInfo.arrival.estimated ? new Date(flightInfo.arrival.estimated) : null;
+      // **SEPARATE LOGIC:** Now, check for critical conditions to send an alert.
+      // This does NOT change the status again.
+      const estimatedArrival = flightInfo.arrival.estimated ? new Date(flightInfo.arrival.estimated) : null;
       // 4 hours after original flight time
-      const predefined_no_show_window_time = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000);
+      const noShowWindow = new Date(booking.flightDate.toDate().getTime() + 4 * 60 * 60 * 1000);
 
-      if (new_status === 'cancelled' || (new_estimated_arrival_time && new_estimated_arrival_time > predefined_no_show_window_time)) {
+      let alertTriggered = false;
+      if (liveStatus === 'cancelled') {
         await triggerProtectionAlert(bookingId);
-        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' }); // Also update status for critical delay
-        return { bookingId, status: `Alert triggered due to: ${new_status}` };
+        alertTriggered = true;
+      } else if (estimatedArrival && estimatedArrival > noShowWindow) {
+        // This condition means the new arrival time is past the hotel's likely no-show cutoff.
+        await triggerProtectionAlert(bookingId);
+        alertTriggered = true;
       }
 
-      return { bookingId, status: `Tracked, current status: ${new_status}` };
+      return { 
+        bookingId, 
+        status: `Tracked, live status: ${liveStatus}`, 
+        alertTriggered: alertTriggered 
+      };
     });
 
     const results = await Promise.all(trackingPromises);
