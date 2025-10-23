@@ -24,10 +24,9 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
 import { addBooking } from '@/lib/actions';
-import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
@@ -80,8 +79,6 @@ type BookingFormValues = z.infer<typeof formSchema>;
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<BookingFormValues>({
@@ -98,19 +95,20 @@ export default function NewBookingPage() {
   });
 
   async function onSubmit(values: BookingFormValues) {
-    if (!user || !firestore) {
+    if (!user) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
     setIsLoading(true);
     
     try {
-      const result = await addBooking(firestore, user.uid, values);
+      const result = await addBooking(user.uid, values);
+      // The server action now handles redirection, so we only need to handle potential errors returned.
       if (result?.error) {
         throw new Error(result.error);
       }
+      // Success toast is good, but redirection is handled by the server action.
       toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
-      router.push('/dashboard');
 
     } catch (error: any) {
       toast({
@@ -172,7 +170,7 @@ export default function NewBookingPage() {
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button></FormControl></PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date('1900-01-01')} initialFocus />
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                           </PopoverContent>
                         </Popover><FormMessage /></FormItem>
                     )} />
