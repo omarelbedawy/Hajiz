@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Plane, Hotel, CheckCircle } from 'lucide-react';
+import { ArrowRight, Plane, Hotel, CircleCheckBig } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useEffect, useState } from 'react';
 
@@ -69,7 +69,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col items-center p-6 rounded-lg transition-all hover:bg-card">
               <div className="bg-primary/10 p-4 rounded-full">
-                <CheckCircle className="h-8 w-8 text-primary" />
+                <CircleCheckBig className="h-8 w-8 text-primary" />
               </div>
               <h3 className="mt-4 text-xl font-headline font-semibold">Status Updates</h3>
               <p className="mt-2 text-muted-foreground">Know the verification status of your bookings.</p>
