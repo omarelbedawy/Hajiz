@@ -1,12 +1,12 @@
 'use server';
 
 import { z } from 'zod';
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getFirestore } from '@/firebase/admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// Re-defining schema here for the server action
+
 const formSchema = z.object({
   hotelName: z.string(),
   hotelRef: z.string(),
@@ -21,10 +21,8 @@ const formSchema = z.object({
 type BookingFormValues = z.infer<typeof formSchema>;
 
 async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string, isTestMode: boolean) {
-    // This key is for the AeroDataBox API as specified.
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
     
-    // Format date to YYYY-MM-DD
     const dateLocal = flightDate.toISOString().split('T')[0];
     const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${dateLocal}`;
 
@@ -34,7 +32,6 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
                 'X-RapidAPI-Key': flightApiKey,
                 'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
             },
-            // Add cache-busting to ensure fresh data
             cache: 'no-store'
         });
 
@@ -50,7 +47,6 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
             return 'Flight Not Found';
         }
         
-        // If not in test mode, try to find the flight with matching arrival airport
         if (!isTestMode && arrivalAirport) {
              const matchingFlight = flightDataArray.find(flight => flight.arrival?.airport?.iata?.toUpperCase() === arrivalAirport.toUpperCase());
              if(matchingFlight && matchingFlight.status) {
@@ -58,7 +54,6 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
              }
         }
 
-        // Fallback to the first result if no specific airport match is found or if in test mode
         if (flightDataArray[0] && flightDataArray[0].status) {
             return flightDataArray[0].status;
         }
@@ -74,33 +69,32 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
 export async function addBooking(userId: string, data: BookingFormValues) {
     if (!userId) {
-        return { success: false, error: 'User not authenticated.' };
+        throw new Error('User not authenticated.');
     }
 
     try {
         const firestore = getFirestore();
         const status = await getLiveFlightStatus(data.flightNumber, data.flightDate, data.arrivalAirport, data.isTestMode);
 
-        await addDoc(collection(firestore, 'bookings'), {
+        await firestore.collection('bookings').add({
             userId: userId,
             hotelName: data.hotelName,
             hotelRef: data.hotelRef,
             flightNumber: data.flightNumber.toUpperCase(),
             pnr: data.pnr.toUpperCase(),
             arrivalAirport: data.arrivalAirport.toUpperCase(),
-            flightDate: Timestamp.fromDate(data.flightDate),
+            flightDate: FieldValue.serverTimestamp(),
             isHajjUmrah: data.isHajjUmrah,
             status: status,
             isTestMode: data.isTestMode,
-            createdAt: Timestamp.now(),
+            createdAt: FieldValue.serverTimestamp(),
         });
 
     } catch (error) {
         console.error("Error adding document: ", error);
-        return { success: false, error: 'Failed to save booking to the database.' };
+        throw new Error('Failed to save booking to the database.');
     }
     
-    // These must be called outside the try/catch block
     revalidatePath('/dashboard');
     redirect('/dashboard');
 }

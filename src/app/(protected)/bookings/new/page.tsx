@@ -102,15 +102,17 @@ export default function NewBookingPage() {
     setIsLoading(true);
     
     try {
-      const result = await addBooking(user.uid, values);
-      // The server action now handles redirection, so we only need to handle potential errors returned.
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-      // Success toast is good, but redirection is handled by the server action.
-      toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
+      // The server action now handles redirection and errors.
+      // We wrap this in a try/catch in case the server action itself throws an unhandled exception,
+      // or if the network call to the server action fails.
+      await addBooking(user.uid, values);
+
+      // Since the server action redirects, this part may not even be reached upon success.
+      // It's here as a fallback.
+      toast({ title: 'Success!', description: 'Your booking is being processed.' });
 
     } catch (error: any) {
+      // The server action is designed to return a structured error, but we'll handle any thrown errors too.
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
@@ -198,7 +200,7 @@ export default function NewBookingPage() {
                       <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="hotelRef" render={({ field }) => (
-                      <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></Form.Item>
                     )} />
                   </div>
                 </div>

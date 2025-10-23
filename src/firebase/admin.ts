@@ -2,45 +2,34 @@ import admin from 'firebase-admin';
 import { App } from 'firebase-admin/app';
 import { getFirestore as getAdminFirestore, Firestore } from 'firebase-admin/firestore';
 
-function getServiceAccount() {
+// This function is self-contained and handles parsing the credentials.
+function initializeFirebaseAdmin(): App {
+  if (admin.apps.length > 0) {
+    return admin.app();
+  }
+
   const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  
   if (!serviceAccountJson) {
-    console.warn('Firebase Admin credentials environment variable not set. Using default credentials.');
-    return undefined;
+      console.warn('Firebase Admin credentials environment variable not set. Using default credentials.');
+       return admin.initializeApp();
   }
+
   try {
-    return JSON.parse(serviceAccountJson);
-  } catch (e) {
-    console.error('Could not parse Firebase Admin credentials.', e);
-    return undefined;
-  }
-}
-
-let firebaseAdminApp: App;
-
-function initializeFirebaseAdmin() {
-  if (!admin.apps.length) {
-    const serviceAccount = getServiceAccount();
-    const credential = serviceAccount 
-      ? admin.credential.cert(serviceAccount)
-      : admin.credential.applicationDefault();
-
-    firebaseAdminApp = admin.initializeApp({
-      credential,
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    return admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
     });
-    console.log('Firebase Admin SDK Initialized.');
-  } else {
-    firebaseAdminApp = admin.app();
+  } catch (e) {
+    console.error('Could not parse Firebase Admin credentials. Initializing with default app.', e);
+    return admin.initializeApp();
   }
-  return firebaseAdminApp;
 }
 
-// Initialize on module load
-initializeFirebaseAdmin();
+// Call initialization right away.
+const firebaseAdminApp = initializeFirebaseAdmin();
 
+// Export a function that returns the already initialized Firestore instance.
 export function getFirestore(): Firestore {
-    if (!firebaseAdminApp) {
-        initializeFirebaseAdmin();
-    }
     return getAdminFirestore(firebaseAdminApp);
 }
