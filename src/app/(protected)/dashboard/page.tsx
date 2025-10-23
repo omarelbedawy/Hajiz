@@ -29,20 +29,25 @@ export default function DashboardPage() {
 
   const { data: bookings, isLoading, error } = useCollection(bookingsQuery);
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" => {
     if (!status) return 'outline';
     const s = status.toLowerCase();
     switch (s) {
       case 'readytotrack':
       case 'scheduled':
+      case 'active':
+      case 'en-route':
         return 'default';
       case 'pending verification':
+      case 'flight not found':
         return 'secondary';
       case 'landed':
         return 'success';
       case 'cancelled':
+      case 'canceled':
       case 'critical_delay':
       case 'delayed':
+      case 'diverted':
         return 'destructive';
       default:
         return 'outline';
