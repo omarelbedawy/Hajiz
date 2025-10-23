@@ -34,14 +34,17 @@ const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
     flightDate: z.date({ required_error: 'Flight date is required.' }),
     isTestMode: z.boolean().default(false),
-    // Conditional fields
     hotelName: z.string(),
     hotelRef: z.string(),
     pnr: z.string(),
     arrivalAirport: z.string(),
     isHajjUmrah: z.boolean(),
   }).superRefine((data, ctx) => {
-    // These fields are always required now, regardless of test mode
+    if (data.isTestMode) {
+      // In test mode, only flight number and date are truly required (and they are already handled by zod)
+      return;
+    }
+    // In non-test mode, all fields are required
     if (data.hotelName.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -77,6 +80,7 @@ type BookingFormValues = z.infer<typeof formSchema>;
 async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string) {
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
     const flightDateStr = flightDate.toISOString().split('T')[0];
+    // This API endpoint searches by flight number and date.
     const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
 
     try {
@@ -93,10 +97,14 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
         }
 
         const flightDataArray = await response.json();
+        
+        // Handle cases where the API returns an empty array or no flights
         if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
             return 'Flight Not Found';
         }
 
+        // Find the flight that matches the arrival airport, otherwise take the first result.
+        // This is important for flights with multiple legs.
         const flightInfo = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport?.toLowerCase()) || flightDataArray[0];
         return flightInfo.status || 'Not Tracked';
 
@@ -142,7 +150,7 @@ export default function NewBookingPage() {
         userId: user.uid,
         hotelName: values.hotelName,
         hotelRef: values.hotelRef,
-        flightNumber: values.flightNumber,
+        flightNumber: values.flightNumber.toUpperCase(),
         pnr: values.pnr.toUpperCase(),
         arrivalAirport: values.arrivalAirport.toUpperCase(),
         flightDate: Timestamp.fromDate(values.flightDate),
@@ -185,7 +193,7 @@ export default function NewBookingPage() {
                       Test Mode
                     </FormLabel>
                     <FormDescription>
-                      The booking status will be fetched from the live API.
+                      In Test Mode, only flight number and date are required.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -207,15 +215,7 @@ export default function NewBookingPage() {
                     <FormField control={form.control} name="flightNumber" render={({ field }) => (
                       <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="pnr" render={({ field }) => (
-                      <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
-                       <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
-                     )} />
-                    <FormField control={form.control} name="flightDate" render={({ field }) => (
+                     <FormField control={form.control} name="flightDate" render={({ field }) => (
                       <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
                           <PopoverTrigger asChild><FormControl>
                               <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
@@ -228,21 +228,35 @@ export default function NewBookingPage() {
                         </Popover><FormMessage /></FormItem>
                     )} />
                   </div>
+                  {!isTestMode && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <FormField control={form.control} name="pnr" render={({ field }) => (
+                         <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
+                       )} />
+                       <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
+                         <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
+                       )} />
+                    </div>
+                  )}
                 </div>
               </div>
               
-              <Separator />
-               <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
-                <div className="space-y-4">
-                  <FormField control={form.control} name="hotelName" render={({ field }) => (
-                    <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="hotelRef" render={({ field }) => (
-                    <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
+              {!isTestMode && (
+                <>
+                <Separator />
+                 <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center"><Hotel className="mr-2 h-5 w-5 text-primary" /> Hotel Information</h3>
+                  <div className="space-y-4">
+                    <FormField control={form.control} name="hotelName" render={({ field }) => (
+                      <FormItem><FormLabel>Hotel Name</FormLabel><FormControl><Input placeholder="e.g., Makkah Clock Royal Tower" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="hotelRef" render={({ field }) => (
+                      <FormItem><FormLabel>Hotel Booking Reference</FormLabel><FormControl><Input placeholder="Confirmation Number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                  </div>
                 </div>
-              </div>
+                </>
+              )}
               <Separator />
               <FormField control={form.control} name="isHajjUmrah" render={({ field }) => (
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
@@ -265,3 +279,5 @@ export default function NewBookingPage() {
     </div>
   );
 }
+
+    
