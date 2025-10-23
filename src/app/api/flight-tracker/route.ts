@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       if (booking.isTestMode === true) {
         // FIX: Immediately trigger the critical alert and update status on the first run.
         await triggerProtectionAlert(bookingId);
-        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY', testRunCount: 1 });
+        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' });
         return { bookingId, status: 'Forced CRITICAL_DELAY for testing' };
       }
 
@@ -87,9 +87,10 @@ export async function GET(request: Request) {
       if (liveStatus === 'cancelled') {
         await triggerProtectionAlert(bookingId);
         alertTriggered = true;
-      } else if (estimatedArrival && estimatedArrival > noShowWindow) {
+      } else if (liveStatus === 'delayed' && estimatedArrival && estimatedArrival > noShowWindow) {
         // This condition means the new arrival time is past the hotel's likely no-show cutoff.
         await triggerProtectionAlert(bookingId);
+        await updateDoc(bookingRef, { status: 'CRITICAL_DELAY' });
         alertTriggered = true;
       }
 
