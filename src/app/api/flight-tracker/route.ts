@@ -16,11 +16,8 @@ async function triggerProtectionAlert(bookingId: string) {
 
 // This function can be run on a schedule (e.g., every 15 minutes) by a cron job service.
 export async function GET(request: Request) {
-  const flightApiKey = process.env.AERODATABOX_API_KEY;
-  if (!flightApiKey || flightApiKey === "YOUR_AERODATABOX_API_KEY_HERE") {
-    console.log('AERODATABOX_API_KEY is not set. Skipping flight tracking.');
-    return NextResponse.json({ message: 'AERODATABOX_API_KEY is not set. Skipping flight tracking.' });
-  }
+  // API Key is hardcoded as requested for immediate functionality.
+  const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
 
   const { firestore } = initializeFirebase();
   try {
@@ -29,10 +26,10 @@ export async function GET(request: Request) {
     const futureTimestamp = Timestamp.fromDate(futureDate);
 
     const bookingsRef = collection(firestore, 'bookings');
-    // Find all bookings that are ready to be tracked and are within the 72-hour window.
+    // Find all bookings that are ready to be tracked or have an active, non-final status.
     const q = query(
       bookingsRef,
-      where('status', 'in', ['ReadyToTrack', 'scheduled', 'delayed', 'active', 'en-route']),
+      where('status', 'in', ['ReadyToTrack', 'Scheduled', 'Delayed', 'Active', 'En-Route']),
       where('flightDate', '<=', futureTimestamp)
     );
 
@@ -68,36 +65,43 @@ export async function GET(request: Request) {
             }
         });
         if (!response.ok) {
-          throw new Error(`API call failed with status: ${response.status}`);
+          // If the API call itself fails, we can't determine the status.
+          // We will update the status to reflect the API error for debugging.
+          const errorBody = await response.text();
+          console.error(`AeroDataBox API call failed for ${booking.flightNumber}: ${response.status}`, errorBody);
+          await updateDoc(bookingRef, { status: `API Error ${response.status}` });
+          return { bookingId, status: `API call failed with status: ${response.status}` };
         }
         flightDataArray = await response.json();
       } catch (fetchError: any) {
         console.error(`Failed to fetch flight data for ${booking.flightNumber}`, fetchError);
+        // Network or other fetch-related error
+        await updateDoc(bookingRef, { status: 'Fetch Error' });
         return { bookingId, status: `API fetch error: ${fetchError.message}` };
       }
       
       // --- LIVE STATUS PROCESSING ---
       if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
-        // If no flight found, update status to indicate this.
+        // If API returns no flight data, update status to indicate this.
         await updateDoc(bookingRef, { status: 'Flight Not Found' });
         return { bookingId, status: `No live flight data found for ${booking.flightNumber}` };
       }
 
-      // Find the specific flight that matches the arrival airport.
-      const flightInfo = flightDataArray.find(f => f.arrival.airport.iata.toLowerCase() === booking.arrivalAirport.toLowerCase()) || flightDataArray[0];
+      // Find the specific flight that matches the arrival airport, or take the first result.
+      const flightInfo = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === booking.arrivalAirport?.toLowerCase()) || flightDataArray[0];
       const liveStatus = flightInfo.status; // e.g., "Scheduled", "Landed", "Canceled", "Diverted", "En-Route"
       
       // **SAVE THE REAL STATUS TO THE DATABASE**
       await updateDoc(bookingRef, { status: liveStatus });
 
-      // **SEPARATE ALERT LOGIC**
+      // **SEPARATE ALERT LOGIC** (Does not change the status in the DB)
       let alertTriggered = false;
-      const criticalDelayThreshold = new Date(flightDate.getTime() + 4 * 60 * 60 * 1000); // 4 hours after original flight time
-
       if (liveStatus.toLowerCase() === 'canceled' || liveStatus.toLowerCase() === 'diverted') {
         await triggerProtectionAlert(bookingId);
         alertTriggered = true;
       } else if (flightInfo.arrival.actualTimeUtc) {
+          const originalFlightTime = flightDate.getTime();
+          const criticalDelayThreshold = new Date(originalFlightTime + 4 * 60 * 60 * 1000); // 4 hours after original flight time
           const estimatedArrival = new Date(flightInfo.arrival.actualTimeUtc);
           if (estimatedArrival > criticalDelayThreshold) {
                await triggerProtectionAlert(bookingId);

@@ -66,6 +66,6 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   },
-  "description": "Please provide the following environment variables. You can get the API keys from the respective service providers.\n- AERODATABOX_API_KEY: Your API key from aerodatabox.com for flight tracking.\n- EMAIL_SERVICE_API_KEY: Your API key from your email service provider (e.g., SendGrid) for sending alerts.",
+  "description": "Please provide your EMAIL_SERVICE_API_KEY if you wish to use the email alert functionality.",
   "keywords": ["nextjs", "firebase", "hajj", "booking", "tracker"]
 }
