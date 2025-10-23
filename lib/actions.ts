@@ -26,8 +26,14 @@ export async function addBooking(data: BookingFormValues, userId: string) {
     }
 
     try {
-        // Note: We are writing to a top-level 'bookings' collection as required by the new API routes.
+        // 
+        // 
+            // Fetch flight status from AeroDataBox API
+            //     const flightStatusResponse = await fetch(
+            //       `https://aerodatabox.p.rapidapi.com/flights/number/${finst.flightNumber}/${finst.flightDate}`,
+            //       {: We are writing to a top-level 'bookings' collection as required by the new API routes.
         await addDoc(collection(firestore, 'bookings'), {
+
             userId: userId,
             hotelName: data.hotelName,
             hotelRef: data.hotelRef,

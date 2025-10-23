@@ -21,8 +21,9 @@ type BookingFormValues = z.infer<typeof formSchema>;
 
 async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string, isTestMode: boolean) {
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
-    const flightDateStr = flightDate.toISOString().split('T')[0];
-    const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
+    // Format date to YYYY-MM-DD
+    const dateLocal = flightDate.toISOString().split('T')[0];
+    const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${dateLocal}`;
 
     try {
         const response = await fetch(flightApiUrl, {
@@ -34,30 +35,26 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
         if (!response.ok) {
             console.error(`AeroDataBox API call failed for ${flightNumber}: ${response.status} ${response.statusText}`);
+            const errorBody = await response.text();
+            console.error("API Error Body:", errorBody);
             return 'Flight Not Found';
         }
 
         const flightDataArray = await response.json();
         
         if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
+            console.log(`No flights found for ${flightNumber} on ${dateLocal}`);
             return 'Flight Not Found';
         }
 
-        let specificFlight;
-
-        if (!isTestMode && arrivalAirport) {
-            specificFlight = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport.toLowerCase());
-        } else {
-            // In test mode, or if no arrival airport is provided, we can't be specific.
-            // But since we query by date, the first result is our best guess.
-            specificFlight = flightDataArray[0];
+        // According to the requirement, use the status from the first element.
+        const flight = flightDataArray[0];
+        
+        if (flight && flight.status) {
+            return flight.status;
         }
 
-        if (specificFlight) {
-            return specificFlight.status || 'Not Tracked';
-        }
-
-        return 'Flight Not Found';
+        return 'Not Tracked';
 
     } catch (error) {
         console.error("Error fetching flight status: ", error);
