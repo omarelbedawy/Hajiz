@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
 import { addBooking } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
@@ -80,6 +80,7 @@ type BookingFormValues = z.infer<typeof formSchema>;
 export default function NewBookingPage() {
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,19 +98,19 @@ export default function NewBookingPage() {
   });
 
   async function onSubmit(values: BookingFormValues) {
-    if (!user) {
+    if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a booking.' });
       return;
     }
     setIsLoading(true);
     
     try {
-      const result = await addBooking(values, user.uid);
+      const result = await addBooking(firestore, user.uid, values);
       if (result?.error) {
         throw new Error(result.error);
       }
-      // Redirect is handled by the server action
       toast({ title: 'Success!', description: 'Your booking has been added and tracked.' });
+      router.push('/dashboard');
 
     } catch (error: any) {
       toast({
@@ -141,7 +142,7 @@ export default function NewBookingPage() {
                       Test Mode
                     </FormLabel>
                     <FormDescription>
-                      In Test Mode, only flight number and date are required.
+                      In Test Mode, some fields are not required.
                     </FormDescription>
                   </div>
                   <FormControl>

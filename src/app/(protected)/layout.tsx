@@ -1,11 +1,16 @@
 'use client';
 import { useUser } from '@/firebase';
 import { redirect } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -13,7 +18,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [user, isUserLoading]);
 
-  if (isUserLoading) {
+  if (!isMounted || isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

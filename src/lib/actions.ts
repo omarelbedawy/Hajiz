@@ -1,10 +1,7 @@
-'use server';
+'use client';
 
 import { z } from 'zod';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase/admin';
+import { collection, addDoc, Timestamp, Firestore } from 'firebase/firestore';
 
 const formSchema = z.object({
   hotelName: z.string(),
@@ -19,7 +16,7 @@ const formSchema = z.object({
 
 type BookingFormValues = z.infer<typeof formSchema>;
 
-async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string, isTestMode: boolean) {
+async function getLiveFlightStatus(flightNumber: string, flightDate: Date) {
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
     // Format date to YYYY-MM-DD
     const dateLocal = flightDate.toISOString().split('T')[0];
@@ -63,14 +60,13 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 }
 
 
-export async function addBooking(data: BookingFormValues, userId: string) {
-    const { firestore } = await initializeFirebase();
+export async function addBooking(firestore: Firestore, userId: string, data: BookingFormValues) {
     if (!userId) {
         return { success: false, error: 'User not authenticated.' };
     }
 
     try {
-        const status = await getLiveFlightStatus(data.flightNumber, data.flightDate, data.arrivalAirport, data.isTestMode);
+        const status = await getLiveFlightStatus(data.flightNumber, data.flightDate);
 
         await addDoc(collection(firestore, 'bookings'), {
             userId: userId,
@@ -85,11 +81,9 @@ export async function addBooking(data: BookingFormValues, userId: string) {
             isTestMode: data.isTestMode,
             createdAt: Timestamp.now(),
         });
+        return { success: true };
     } catch (error) {
         console.error("Error adding document: ", error);
         return { success: false, error: 'Failed to save booking to the database.' };
     }
-
-    revalidatePath('/dashboard');
-    redirect('/dashboard');
 }
