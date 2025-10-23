@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase'; // Using client-side init
+import { initializeFirebase } from '@/firebase/admin'; // Using admin init for server-side
 
 const formSchema = z.object({
     flightNumber: z.string().min(1, { message: 'Flight number is required.' }),
@@ -37,6 +37,7 @@ const formSchema = z.object({
 type BookingFormValues = z.infer<typeof formSchema>;
 
 async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arrivalAirport: string) {
+    // This key is hardcoded as requested for immediate functionality.
     const flightApiKey = "abf6e166a1msh3911bf103317920p17e443jsn8e9ed0e4693a";
     const flightDateStr = flightDate.toISOString().split('T')[0];
     const flightApiUrl = `https://aerodatabox.p.rapidapi.com/flights/number/${flightNumber}/${flightDateStr}`;
@@ -70,7 +71,7 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
 
 export async function addBooking(values: BookingFormValues, userId: string) {
-    const { firestore } = initializeFirebase(); // Using client SDK now
+    const { firestore } = initializeFirebase(); // Using ADMIN SDK now
     if (!userId) {
         throw new Error('User not authenticated.');
     }
