@@ -98,14 +98,24 @@ async function getLiveFlightStatus(flightNumber: string, flightDate: Date, arriv
 
         const flightDataArray = await response.json();
         
-        // Handle cases where the API returns an empty array or no flights
+        // Handle cases where the API returns an empty array or no flights for the given date
         if (!flightDataArray || !Array.isArray(flightDataArray) || flightDataArray.length === 0) {
             return 'Flight Not Found';
         }
 
-        // Find the flight that matches the arrival airport, otherwise take the first result.
-        // This is important for flights with multiple legs.
-        const flightInfo = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport?.toLowerCase()) || flightDataArray[0];
+        // If an arrival airport is provided (not in test mode), find the specific flight leg.
+        if (arrivalAirport) {
+            const specificFlight = flightDataArray.find(f => f.arrival.airport.iata?.toLowerCase() === arrivalAirport.toLowerCase());
+            if (specificFlight) {
+                return specificFlight.status || 'Not Tracked';
+            }
+            // If we have an arrival airport but no match, it's better to say not found than to show wrong data
+            return 'Flight Not Found';
+        }
+        
+        // For test mode (or if no arrival airport is given), take the first flight in the list.
+        // This is now less likely to be wrong since we are querying by date.
+        const flightInfo = flightDataArray[0];
         return flightInfo.status || 'Not Tracked';
 
     } catch (error) {
@@ -279,5 +289,3 @@ export default function NewBookingPage() {
     </div>
   );
 }
-
-    
