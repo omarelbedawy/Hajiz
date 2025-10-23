@@ -146,13 +146,13 @@ export default function NewBookingPage() {
       
       const dataToSend = {
         userId: user.uid,
-        hotelName: values.isTestMode ? '' : values.hotelName,
-        hotelRef: values.isTestMode ? '' : values.hotelRef,
+        hotelName: values.hotelName,
+        hotelRef: values.hotelRef,
         flightNumber: values.flightNumber,
-        pnr: values.isTestMode ? '' : values.pnr.toUpperCase(),
-        arrivalAirport: values.isTestMode ? '' : values.arrivalAirport.toUpperCase(),
+        pnr: values.pnr.toUpperCase(),
+        arrivalAirport: values.arrivalAirport.toUpperCase(),
         flightDate: Timestamp.fromDate(values.flightDate),
-        isHajjUmrah: values.isTestMode ? false : values.isHajjUmrah,
+        isHajjUmrah: values.isHajjUmrah,
         status: status, 
         isTestMode: values.isTestMode,
         createdAt: Timestamp.now(),
@@ -210,54 +210,35 @@ export default function NewBookingPage() {
                 {isTestMode && <p className="text-sm text-muted-foreground mb-4">In test mode, you only need a flight number and a date to simulate tracking.</p>}
                 <div className="space-y-4">
                   
-                  {!isTestMode ? (
-                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="flightNumber" render={({ field }) => (
-                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="pnr" render={({ field }) => (
-                          <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="flightNumber" render={({ field }) => (
+                      <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV590" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    {!isTestMode && (
+                      <FormField control={form.control} name="pnr" render={({ field }) => (
+                      <FormItem><FormLabel>PNR / Airline Locator</FormLabel><FormControl><Input placeholder="6-character code" {...field} maxLength={6} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {!isTestMode && (
                         <FormField control={form.control} name="arrivalAirport" render={({ field }) => (
                           <FormItem><FormLabel>Arrival Airport</FormLabel><FormControl><Input placeholder="e.g., JED" {...field} maxLength={3} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name="flightDate" render={({ field }) => (
-                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
-                              <PopoverTrigger asChild><FormControl>
-                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button></FormControl></PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date('1900-01-01')} initialFocus />
-                              </PopoverContent>
-                            </Popover><FormMessage /></FormItem>
-                        )} />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                       <FormField control={form.control} name="flightNumber" render={({ field }) => (
-                          <FormItem><FormLabel>Flight Number</FormLabel><FormControl><Input placeholder="e.g., SV-TEST" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="flightDate" render={({ field }) => (
-                          <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
-                              <PopoverTrigger asChild><FormControl>
-                                  <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button></FormControl></PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                              </PopoverContent>
-                            </Popover><FormMessage /></FormItem>
-                        )} />
-                    </>
-                  )}
-
+                     )}
+                    <FormField control={form.control} name="flightDate" render={({ field }) => (
+                      <FormItem className="flex flex-col"><FormLabel>Flight Date</FormLabel><Popover>
+                          <PopoverTrigger asChild><FormControl>
+                              <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
+                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button></FormControl></PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date('1900-01-01')} initialFocus />
+                          </PopoverContent>
+                        </Popover><FormMessage /></FormItem>
+                    )} />
+                  </div>
                 </div>
               </div>
               
