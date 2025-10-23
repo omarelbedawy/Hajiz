@@ -102,11 +102,8 @@ export default function NewBookingPage() {
     setIsLoading(true);
     
     try {
-      await addBooking(values, user.uid);
-
-      // Since the server action redirects, this part may not even be reached upon success.
-      // It's here as a fallback.
-      toast({ title: 'Success!', description: 'Your booking is being processed.' });
+      // The server action will handle redirection.
+      await addBooking(user.uid, values);
 
     } catch (error: any) {
       toast({
